@@ -10,7 +10,9 @@
         Foreground="{StaticResource TextBrush}"
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display"
-        TextOptions.TextRenderingMode="ClearType">
+        TextOptions.TextRenderingMode="ClearType"
+        AutomationProperties.Name="Vista 无障碍版微博与小红书聚合客户端主窗口"
+        AutomationProperties.HelpText="支持多账号浏览、转发分享、评论查看、离线缓存，全键盘和读屏软件均可操作。">
     <Window.Resources>
         <!-- 信息流卡片模板：把每条 PostCard 包成 CardItem，CardAutomationPeer 据此暴露结构化朗读字段。
              DataType=PostCard 表示 ItemsControl 渲染 PostCard 类型项时套用本模板；
@@ -48,12 +50,6 @@
             </a11y:CommentItem>
         </DataTemplate>
     </Window.Resources>
-    <!-- AutomationProperties.Name：争渡读屏打开窗口时直接朗读完整标题 -->
-    <Window.AutomationProperties>
-        <AutomationProperties>Name>Vista 无障碍版微博与小红书聚合客户端主窗口</AutomationProperties>
-        <AutomationProperties.HelpText>支持多账号浏览、转发分享、评论查看、离线缓存，全键盘和读屏软件均可操作。</AutomationProperties.HelpText>
-    </Window.AutomationProperties>
-
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>  <!-- 顶部：账号 + 操作工具栏 -->

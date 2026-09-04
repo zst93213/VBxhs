@@ -4,12 +4,9 @@
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         Title="登录账号" Height="720" Width="560"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource SurfaceBrush}">
-    <Window.AutomationProperties>
-        <AutomationProperties.Name>登录窗口</AutomationProperties>
-        <AutomationProperties.HelpText>用官方登录页登录，登录成功后凭证加密保存。</AutomationProperties.HelpText>
-    </Window.AutomationProperties>
-
+        Background="{StaticResource SurfaceBrush}"
+        AutomationProperties.Name="登录窗口"
+        AutomationProperties.HelpText="用官方登录页登录，登录成功后凭证加密保存。">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
