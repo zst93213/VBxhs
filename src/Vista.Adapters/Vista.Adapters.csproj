@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vista.Adapters：适配层。把官方 API 翻译成统一的 IPlatformAdapter。
+     设计计划 §三第 3 层。新增平台只加一个 Adapter（插件化，M5 预留抖音/B 站接入点）。 -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net481</TargetFramework>
+    <UseWPF>false</UseWPF>
+    <RootNamespace>Vista.Adapters</RootNamespace>
+    <Description>微博/小红书 API 适配器；鉴权、签名、限速、重试</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Vista.Core\Vista.Core.csproj" />
+    <ProjectReference Include="..\Vista.Infrastructure\Vista.Infrastructure.csproj" />
+    <ProjectReference Include="..\Vista.Accounts\Vista.Accounts.csproj" />
+  </ItemGroup>
+</Project>

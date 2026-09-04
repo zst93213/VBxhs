@@ -1,0 +1,49 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- 高对比度主题资源。设计计划 §4.3：默认即高可读，正文最小 16px，焦点环永远可见。
+         所有颜色集中在资源字典，方便"标准/高对比度/暗色"三套切换。 -->
+
+    <!-- 表面 -->
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFCFCFD"/>
+    <SolidColorBrush x:Key="SurfaceMutedBrush" Color="#FFEFEFF2"/>
+    <SolidColorBrush x:Key="TextBrush" Color="#FF111114"/>
+    <SolidColorBrush x:Key="TextMutedBrush" Color="#FF3F3F46"/>
+    <SolidColorBrush x:Key="BorderBrush" Color="#FFB4B4BC"/>
+    <SolidColorBrush x:Key="BrandBrush" Color="#FF4B3FE3"/>
+    <SolidColorBrush x:Key="BrandTextBrush" Color="#FF1A1759"/>
+
+    <!-- 焦点环：2px 实线品牌色 + 内白边，暗色模式自动反色。
+         用 FocusVisualStyle 全局套用，保证 Tab/箭头都能看到焦点。 -->
+    <Style x:Key="VisibleFocusVisualStyle" TargetType="Control">
+        <Setter Property="FrameworkElement.FocusVisualStyle">
+            <Setter.Value>
+                <ControlTemplate TargetType="Control">
+                    <Rectangle Margin="-2" StrokeThickness="2"
+                              Stroke="{StaticResource BrandBrush}"
+                              StrokeDashArray="1 0"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 正文最小 16px，符合 §4.3。可全局放大到 32px（5 档）由代码动态调整 -->
+    <Style TargetType="TextBlock">
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+    </Style>
+    <Style TargetType="AccessText">
+        <Setter Property="FontSize" Value="16"/>
+    </Style>
+    <Style TargetType="Button" BasedOn="{StaticResource VisibleFocusVisualStyle}">
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="Padding" Value="10,4"/>
+    </Style>
+    <Style TargetType="TextBox">
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="Padding" Value="6,4"/>
+    </Style>
+    <Style TargetType="ListBoxItem">
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="Padding" Value="12,8"/>
+    </Style>
+</ResourceDictionary>

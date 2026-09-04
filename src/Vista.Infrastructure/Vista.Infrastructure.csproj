@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net481</TargetFramework>
+    <UseWPF>false</UseWPF>
+    <RootNamespace>Vista.Infrastructure</RootNamespace>
+    <Description>HTTP 客户端、SQLite 缓存、Serilog 日志、配置中心</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Polly" Version="7.2.4" />
+    <PackageReference Include="Serilog" Version="3.0.1" />
+    <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="4.0.1" />
+    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.117" />
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Vista.Core\Vista.Core.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vista.Presentation：WPF 表现层 + 无障碍服务层 + Composition Root。
+     设计计划 §三第 1 层、§四无障碍准则 的落地。 -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net481</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>Vista.Presentation</RootNamespace>
+    <AssemblyName>Vista</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Description>WPF 主程序；UI Automation、键盘中心、朗读服务、WebView2 登录</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2792.45" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- System.Speech：SAPI 朗读服务（设计计划 §二 SAPI 5 / System.Speech） -->
+    <Reference Include="System.Speech" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Vista.Core\Vista.Core.csproj" />
+    <ProjectReference Include="..\Vista.Infrastructure\Vista.Infrastructure.csproj" />
+    <ProjectReference Include="..\Vista.Accounts\Vista.Accounts.csproj" />
+    <ProjectReference Include="..\Vista.Adapters\Vista.Adapters.csproj" />
+    <ProjectReference Include="..\Vista.Features.Weibo\Vista.Features.Weibo.csproj" />
+    <ProjectReference Include="..\Vista.Features.Xiaohongshu\Vista.Features.Xiaohongshu.csproj" />
+  </ItemGroup>
+</Project>

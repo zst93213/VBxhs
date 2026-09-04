@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 解决方案级统一属性。所有项目共享。 -->
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <!-- 目标框架：.NET Framework 4.8.1（Windows 10 1809+ 自带运行时，零部署依赖） -->
+    <TargetFramework>net481</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Platforms>AnyCPU</Platforms>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Nullable>disable</Nullable> <!-- 4.8.1 下 Nullable 全开需 Roslyn 3.0+，逐步启用 -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <!-- 强制代码页 UTF-8，避免中文注释乱码 -->
+    <CodePage>65001</CodePage>
+    <!-- 输出统一归到 /artifacts，便于清理 -->
+    <BaseOutputPath>$(MSBuildThisFileDirectory)artifacts\</BaseOutputPath>
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)artifacts\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <!-- 产品信息 -->
+    <Company>Vista Accessibility</Company>
+    <Product>Vista — 无障碍版微博 &amp; 小红书聚合客户端</Product>
+    <Copyright>Copyright © 2026 Vista Accessibility</Copyright>
+    <Version>0.1.0-m0</Version>
+  </PropertyGroup>
+</Project>

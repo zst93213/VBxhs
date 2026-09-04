@@ -1,0 +1,35 @@
+# .NET
+bin/
+obj/
+artifacts/
+publish/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# NuGet
+packages/
+*.nupkg
+
+# JetBrains Rider
+.idea/
+*.DotSettings.user
+
+# macOS / Linux
+.DS_Store
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Vista 本地数据（凭证、缓存、日志、DPAPI 加密材料）
+!src/**/Vault/SecureCredentialVault.cs
+logs/
+*.cache
+Vista/

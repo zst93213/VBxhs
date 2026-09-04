@@ -1,0 +1,37 @@
+<Window x:Class="Vista.Presentation.Auth.WebView2LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="登录账号" Height="720" Width="560"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource SurfaceBrush}">
+    <Window.AutomationProperties>
+        <AutomationProperties.Name>登录窗口</AutomationProperties>
+        <AutomationProperties.HelpText>用官方登录页登录，登录成功后凭证加密保存。</AutomationProperties.HelpText>
+    </Window.AutomationProperties>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="12,8">
+            <RadioButton x:Name="PlatformWeibo" Content="微博" IsChecked="True" Margin="0,0,16,0"
+                         AutomationProperties.Name="登录微博账号"/>
+            <RadioButton x:Name="PlatformXhs" Content="小红书"
+                         AutomationProperties.Name="登录小红书账号"/>
+        </StackPanel>
+
+        <!-- WebView2 托管官方登录页（设计计划：WebView 托管登录决策） -->
+        <wv2:WebView2 x:Name="LoginWebView" Grid.Row="1"
+                      NavigationCompleted="OnNavCompleted"/>
+
+        <StatusBar Grid.Row="2" Background="{StaticResource SurfaceMutedBrush}">
+            <TextBlock x:Name="LoginStatus" Text="请在上方页面登录"
+                       AutomationProperties.LiveSetting="Polite"
+                       AutomationProperties.Name="登录状态"/>
+        </StatusBar>
+    </Grid>
+</Window>

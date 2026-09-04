@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vista.Features.Xiaohongshu：小红书业务用例层。 -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net481</TargetFramework>
+    <UseWPF>false</UseWPF>
+    <RootNamespace>Vista.Features.Xiaohongshu</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- 用例只依赖抽象（Core.IPlatformAdapter）与 Accounts 上下文，不引用 Adapters 实现。
+         具体 Adapter 由表现层 Composition Root 注入，遵循依赖倒置。 -->
+    <ProjectReference Include="..\Vista.Core\Vista.Core.csproj" />
+    <ProjectReference Include="..\Vista.Accounts\Vista.Accounts.csproj" />
+  </ItemGroup>
+</Project>

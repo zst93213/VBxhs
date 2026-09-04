@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vista.Accounts：账号层。账号仓库 + 当前账号上下文 + DPAPI 凭证保险箱。
+     设计计划 §三第 4 层、§五多账号管理、§九数据存储与安全 的具体落地。 -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net481</TargetFramework>
+    <UseWPF>false</UseWPF>
+    <RootNamespace>Vista.Accounts</RootNamespace>
+    <Description>多账号仓库、当前账号上下文、DPAPI 凭证保险箱</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.Security" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Vista.Core\Vista.Core.csproj" />
+  </ItemGroup>
+</Project>

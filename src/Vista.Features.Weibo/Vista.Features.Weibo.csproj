@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vista.Features.Weibo：微博业务用例层。依赖 Core 接口与 Accounts 上下文，不直接依赖 Adapter 实现。
+     用例粒度参考 redbook CLI。 -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net481</TargetFramework>
+    <UseWPF>false</UseWPF>
+    <RootNamespace>Vista.Features.Weibo</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- 用例只依赖抽象（Core.IPlatformAdapter）与 Accounts 上下文，不引用 Adapters 实现。
+         具体 Adapter 由表现层 Composition Root 注入，遵循依赖倒置。 -->
+    <ProjectReference Include="..\Vista.Core\Vista.Core.csproj" />
+    <ProjectReference Include="..\Vista.Accounts\Vista.Accounts.csproj" />
+  </ItemGroup>
+</Project>

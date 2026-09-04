@@ -1,0 +1,13 @@
+<Application x:Class="Vista.Presentation.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- 不用 StartupUri：在 OnStartup 中构造窗口，确保 MainViewModel 就绪后再绑定 -->
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- 高对比度主题：默认也走高可读配色，符合"无障碍优先"原则 -->
+                <ResourceDictionary Source="Themes/HighContrast.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
