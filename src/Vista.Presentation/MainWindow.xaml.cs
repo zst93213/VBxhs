@@ -1,12 +1,19 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using Vista.Presentation.Accessibility;
 using Vista.Presentation.Auth;
 
 namespace Vista.Presentation
 {
     /// <summary>
-    /// 主窗口 code-behind。承载导航、账号栏、键盘事件路由、朗读触发。
-    /// ViewModel 处理数据与命令；这里只处理纯 UI 事件转 ViewModel。
+    /// 主窗口 code-behind。只处理纯 UI 事件路由到 ViewModel；所有状态数据绑定到 DataContext。
+    ///
+    /// 争渡适配要点：
+    ///   1) Loaded 时调用 ZdsCompatibility.DisableVirtualization(信息流 + 评论区)：争渡对虚拟化列表读不准。
+    ///   2) Loaded 时 DemoteStatusBarLiveRegion：发现争渡进程则把状态栏 LiveSetting 降级，避免重复播报。
+    ///   3) 键盘中心注册全局快捷键。
+    ///   4) 状态栏 Status 与 ViewModel 绑定，TextBlock Text 变化触发 UIA LiveRegion（若为 Polite）。
     /// </summary>
     public partial class MainWindow : Window
     {
@@ -23,39 +30,78 @@ namespace Vista.Presentation
             _vm = DataContext as MainViewModel ?? ((App)Application.Current).MainWindowVm;
             DataContext = _vm;
 
-            // 注册全局键盘快捷键（设计计划 §4.2）
+            // --- 争渡兼容：关虚拟化 + 降 LiveRegion + 状态栏绑定 ---
+            ZdsCompatibility.DisableVirtualization(CardList);
+            ZdsCompatibility.DisableVirtualization(CommentList);
+            ZdsCompatibility.DemoteStatusBarLiveRegion(this);
+
+            // 状态栏文字：绑定 ViewModel.Status
+            StatusText.SetBinding(System.Windows.Controls.TextBlock.TextProperty,
+                new System.Windows.Data.Binding("Status") { Source = _vm });
+
+            // 评论区绑定
+            CommentList.SetBinding(System.Windows.Controls.ItemsControl.ItemsSourceProperty,
+                new System.Windows.Data.Binding("CurrentComments") { Source = _vm });
+
+            // 信息流绑定
+            CardList.SetBinding(System.Windows.Controls.ItemsControl.ItemsSourceProperty,
+                new System.Windows.Data.Binding("Cards") { Source = _vm });
+
+            // 选中卡片 → VM.CurrentCard
+            CardList.SelectionChanged += (s2, e2) =>
+                _vm.CurrentCard = CardList.SelectedItem as Core.Adapters.Models.PostCard;
+
+            // --- 全局键盘快捷键 ---
             Input.KeyboardCommandCenter.Register(this, _vm);
 
-            // 默认选中首页
+            // --- 默认选中：导航第 0 项，焦点放到信息流（争渡用户一打开 Tab 主内容区） ---
             if (NavList.Items.Count > 0) NavList.SelectedIndex = 0;
-
-            // 焦点放到信息流，方便读屏立即进入主内容区
             Keyboard.Focus(CardList);
         }
 
+        // ---------- 导航事件 ----------
         private void OnNavChanged(object sender, SelectionChangedEventArgs e)
         {
             if (NavList.SelectedItem is ListBoxItem item && item.Tag is string tag)
                 _vm?.NavigateTo(tag);
         }
 
+        // ---------- 账号 ----------
         private void OnAddAccount(object sender, RoutedEventArgs e)
         {
-            // 打开 WebView2 托管登录窗口（设计计划：WebView 托管登录决策）
-            var win = new WebView2LoginWindow();
-            win.Owner = this;
+            var win = new WebView2LoginWindow { Owner = this };
             win.ShowDialog();
         }
 
         private void OnManageAccounts(object sender, RoutedEventArgs e)
+            => MessageBox.Show("账号管理器：添加、分组、删除已登录账号。（M1 实现）", "Vista");
+
+        // ---------- 工具栏操作 ----------
+        private async void OnRefresh(object sender, RoutedEventArgs e)
         {
-            // M1 实现：账号管理面板
-            MessageBox.Show("账号管理面板（M1 实现）", "Vista", MessageBoxButton.OK, MessageBoxImage.Information);
+            if (_vm == null) return;
+            await _vm.RefreshFeedAsync();
         }
 
-        private void OnNarrateCurrent(object sender, RoutedEventArgs e)
+        private async void OnRepost(object sender, RoutedEventArgs e)
         {
-            _vm?.NarrateCurrentCard();
+            if (_vm == null) return;
+            await _vm.RepostOrShareCurrentAsync();
+        }
+
+        private async void OnLoadComments(object sender, RoutedEventArgs e)
+        {
+            if (_vm == null) return;
+            await _vm.LoadCurrentCommentsAsync();
+        }
+
+        private void OnNarrateComments(object sender, RoutedEventArgs e) => _vm?.NarrateComments();
+        private void OnNarrateCurrent(object sender, RoutedEventArgs e) => _vm?.NarrateCurrentCard();
+
+        private async void OnSaveOffline(object sender, RoutedEventArgs e)
+        {
+            if (_vm == null) return;
+            await _vm.SaveFeedOfflineAsync();
         }
     }
 }

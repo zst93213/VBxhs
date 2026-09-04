@@ -11,6 +11,8 @@ using Vista.Infrastructure.Cache;
 using Vista.Infrastructure.Http;
 using Vista.Infrastructure.Logging;
 
+using Vista.Features.Xiaohongshu.UseCases;
+
 namespace Vista.Presentation
 {
     public partial class App : Application
@@ -24,6 +26,9 @@ namespace Vista.Presentation
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+
+            // 第 0 步：争渡读屏兼容配置（先做，影响后续 NarrationService 开关等）
+            Vista.Presentation.Accessibility.ZdsCompatibility.Apply();
 
             var logDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)
                 + "\\Vista\\logs";
@@ -50,6 +55,8 @@ namespace Vista.Presentation
                 new GetHomeTimelineUseCase(WeiboAdapter, AccountContext),
                 new SearchNotesUseCase(XiaohongshuAdapter, AccountContext),
                 new RepostUseCase(WeiboAdapter, AccountContext),
+                new ShareNoteUseCase(XiaohongshuAdapter, AccountContext),
+                new GetCommentsUseCase(XiaohongshuAdapter, AccountContext),
                 AccountContext, Accounts, Cache);
 
             var main = new MainWindow { DataContext = MainWindowVm };

@@ -9,85 +9,124 @@
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType">
-    <!-- AutomationProperties.Name 让读屏在窗口打开时朗读完整标题 -->
+    <!-- AutomationProperties.Name：争渡读屏打开窗口时直接朗读完整标题 -->
     <Window.AutomationProperties>
-        <AutomationProperties>Name>Vista 主窗口</AutomationProperties>
-        <AutomationProperties.HelpText>无障碍版微博与小红书聚合客户端。按 Alt 加数字键切换功能区。</AutomationProperties.HelpText>
+        <AutomationProperties>Name>Vista 无障碍版微博与小红书聚合客户端主窗口</AutomationProperties>
+        <AutomationProperties.HelpText>支持多账号浏览、转发分享、评论查看、离线缓存，全键盘和读屏软件均可操作。</AutomationProperties.HelpText>
     </Window.AutomationProperties>
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>  <!-- 顶部栏 -->
+            <RowDefinition Height="Auto"/>  <!-- 顶部：账号 + 操作工具栏 -->
             <RowDefinition Height="*"/>      <!-- 三栏主体 -->
             <RowDefinition Height="Auto"/>   <!-- 底部状态栏 -->
         </Grid.RowDefinitions>
 
-        <!-- 顶部栏：账号 Chip 区 + 搜索 + 朗读 + 设置 -->
+        <!-- 顶部栏：账号 Chip 区 + 操作按钮组 + 搜索 -->
         <DockPanel Grid.Row="0" LastChildFill="True" Background="{StaticResource SurfaceMutedBrush}">
+            <!-- 左：账号管理 -->
             <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" Margin="12,8">
-                <AccessText>账号：</AccessText>
-                <ComboBox x:Name="AccountChip" Width="220" Margin="8,0,24,0"
+                <AccessText>当前账号：</AccessText>
+                <ComboBox x:Name="AccountChip" Width="260" Margin="8,0,16,0"
                           AutomationProperties.Name="当前账号选择"
-                          AutomationProperties.HelpText="Ctrl 加数字键可快速切换账号"/>
-                <Button Content="管理账号" Padding="8,2" Margin="0,0,8,0"
-                        AutomationProperties.Name="打开账号管理器"
-                        Click="OnManageAccounts"/>
-                <Button Content="添加账号" Padding="8,2"
-                        AutomationProperties.Name="添加新账号（微博或小红书）"
+                          AutomationProperties.HelpText="展开后按上下方向键选择已登录账号，回车切换。Ctrl 加数字键可快速切换。"/>
+                <Button Content="添加账号" Padding="10,2" Margin="0,0,6,0"
+                        AutomationProperties.Name="添加新账号（微博或小红书），打开扫码登录窗口"
                         Click="OnAddAccount"/>
+                <Button Content="管理账号" Padding="10,2" Margin="0,0,6,0"
+                        AutomationProperties.Name="打开账号管理器：查看、分组、删除已登录账号"
+                        Click="OnManageAccounts"/>
             </StackPanel>
-            <Button DockPanel.Dock="Right" Content="朗读当前卡片" Padding="10,2" Margin="8,0"
-                    AutomationProperties.Name="朗读当前卡片全文（Alt Shift R）"
-                    Click="OnNarrateCurrent"/>
-            <Button DockPanel.Dock="Right" Content="设置" Padding="10,2" Margin="0,0,8,0"
-                    AutomationProperties.Name="打开设置"/>
-            <TextBox x:Name="SearchBox" Margin="12,6" VerticalContentAlignment="Center"
-                     AutomationProperties.Name="搜索框"
-                     AutomationProperties.HelpText="输入关键词后回车搜索"/>
+
+            <!-- 右：操作按钮组 -->
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Margin="12,8">
+                <Button Content="刷新" Padding="10,2" Margin="0,0,6,0"
+                        AutomationProperties.Name="刷新信息流，按 F5 快捷键也可触发"
+                        Click="OnRefresh"/>
+                <Button Content="转发或分享" Padding="10,2" Margin="0,0,6,0"
+                        AutomationProperties.Name="一键转发微博或分享当前笔记到剪贴板，快捷键 Alt F"
+                        Click="OnRepost"/>
+                <Button Content="加载评论" Padding="10,2" Margin="0,0,6,0"
+                        AutomationProperties.Name="加载当前卡片的评论列表，加载完成后按 Tab 到评论区即可按行朗读"
+                        Click="OnLoadComments"/>
+                <Button Content="朗读评论" Padding="10,2" Margin="0,0,6,0"
+                        AutomationProperties.Name="手动朗读当前所有评论，快捷键 Alt Shift C"
+                        Click="OnNarrateComments"/>
+                <Button Content="朗读卡片" Padding="10,2" Margin="0,0,6,0"
+                        AutomationProperties.Name="手动朗读当前选中的卡片内容，快捷键 Alt Shift R"
+                        Click="OnNarrateCurrent"/>
+                <Button Content="保存离线缓存" Padding="10,2" Margin="0,0,6,0"
+                        AutomationProperties.Name="将当前信息流保存到本地缓存，断网时也能查看"
+                        Click="OnSaveOffline"/>
+                <Button Content="设置" Padding="10,2" Margin="0,0,0,0"
+                        AutomationProperties.Name="打开设置：主题、快捷键、朗读方式、字体大小"/>
+            </StackPanel>
+
+            <!-- 中：搜索框 -->
+            <TextBox x:Name="SearchBox" Margin="18,6" VerticalContentAlignment="Center"
+                     AutomationProperties.Name="搜索框，输入关键词后回车在微博或小红书上搜索内容"
+                     AutomationProperties.HelpText="回车执行搜索，搜索范围随当前账号平台切换，微博搜内容，小红书搜笔记。"/>
         </DockPanel>
 
         <!-- 三栏主体 -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="220"/>
+                <ColumnDefinition Width="240"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="380"/>
+                <ColumnDefinition Width="400"/>
             </Grid.ColumnDefinitions>
 
-            <!-- 左栏：导航。Alt+1..5 切换 -->
+            <!-- 左栏：导航。Alt+1..5 切换。Name 用完整中文+快捷键，争渡 Tab 直接读 -->
             <ListBox x:Name="NavList" Grid.Column="0" Background="{StaticResource SurfaceMutedBrush}"
-                     AutomationProperties.Name="主导航"
-                     AutomationProperties.HelpText="Alt 加 1 到 5 切换功能区"
+                     AutomationProperties.Name="主导航菜单，使用 Alt 加数字键 1 到 5 可直接切换功能区"
+                     AutomationProperties.HelpText="当前选中项会在右侧主区域显示对应内容"
                      SelectionChanged="OnNavChanged">
-                <ListBoxItem AutomationProperties.Name="1 首页" Tag="Home"/>
-                <ListBoxItem AutomationProperties.Name="2 消息" Tag="Messages"/>
-                <ListBoxItem AutomationProperties.Name="3 发布" Tag="Publish"/>
-                <ListBoxItem AutomationProperties.Name="4 我的" Tag="Me"/>
-                <ListBoxItem AutomationProperties.Name="5 设置" Tag="Settings"/>
+                <ListBoxItem Tag="Home"
+                             AutomationProperties.Name="1，首页功能区，快捷键 Alt 数字 1。显示关注和推荐信息流。"/>
+                <ListBoxItem Tag="Messages"
+                             AutomationProperties.Name="2，消息功能区，快捷键 Alt 数字 2。查看私信、评论通知、被赞被艾特通知。"/>
+                <ListBoxItem Tag="Publish"
+                             AutomationProperties.Name="3，发布功能区，快捷键 Alt 数字 3。发布微博或发布小红书笔记。"/>
+                <ListBoxItem Tag="Me"
+                             AutomationProperties.Name="4，我的功能区，快捷键 Alt 数字 4。查看个人主页、我发布的内容、收藏夹。"/>
+                <ListBoxItem Tag="Settings"
+                             AutomationProperties.Name="5，设置功能区，快捷键 Alt 数字 5。调整主题、快捷键、朗读方式、字体大小。"/>
             </ListBox>
 
-            <!-- 中栏：信息流主区域（焦点主战场）。CardList 用自定义 Peer 分段朗读 -->
+            <!-- 中栏：信息流。自定义 Peer + 无虚拟化 -->
             <Border Grid.Column="1" Padding="12">
                 <ListView x:Name="CardList"
                           Background="Transparent"
                           BorderThickness="0"
-                          AutomationProperties.Name="信息流"
-                          AutomationProperties.HelpText="J 下一张，K 上一张，Enter 打开，L 点赞，C 评论"/>
+                          AutomationProperties.Name="信息流内容列表"
+                          AutomationProperties.HelpText="按 J 键跳到下一张卡片，K 键回到上一张，Enter 键打开详情，L 键点赞当前卡片，C 键评论当前卡片。">
+                </ListView>
             </Border>
 
-            <!-- 右栏：上下文面板（评论/消息/账号详情） -->
+            <!-- 右栏：评论区（结构化，用 CommentAutomationPeer 暴露 SpokenLabel，争渡直接读） -->
             <Border Grid.Column="2" Background="{StaticResource SurfaceMutedBrush}" Padding="12">
-                <ContentControl x:Name="ContextPanel"
-                                AutomationProperties.Name="详情面板"/>
+                <DockPanel LastChildFill="True">
+                    <TextBlock DockPanel.Dock="Top"
+                               Text="评论区"
+                               FontWeight="Bold"
+                               AutomationProperties.Name="右栏评论区标题"
+                               Margin="0,0,0,8"/>
+                    <ListView x:Name="CommentList"
+                              Background="Transparent"
+                              BorderThickness="0"
+                              AutomationProperties.Name="当前卡片的评论列表"
+                              AutomationProperties.HelpText="按上下方向键切换评论，争渡读屏会按楼层顺序朗读评论内容、作者、时间和点赞数。按 C 键可以回复当前评论。"/>
+                </DockPanel>
             </Border>
         </Grid>
 
-        <!-- 底部状态栏。LiveRegion=Polite：状态变化时读屏轻量朗读 -->
+        <!-- 底部状态栏。LiveSetting 原始值为 Polite：未发现争渡读屏时，状态栏状态变化由 UIA 朗读；
+             发现争渡读屏时，启动后会自动降级为 Off，避免与争渡重复播报 -->
         <StatusBar Grid.Row="2" Background="{StaticResource SurfaceMutedBrush}">
             <StatusBarItem>
                 <TextBlock x:Name="StatusText" Text="就绪"
                           AutomationProperties.LiveSetting="Polite"
-                          AutomationProperties.Name="状态栏"/>
+                          AutomationProperties.Name="状态栏，显示当前操作结果和系统状态"/>
             </StatusBarItem>
         </StatusBar>
     </Grid>

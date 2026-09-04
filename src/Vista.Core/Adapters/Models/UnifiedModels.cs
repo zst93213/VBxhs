@@ -53,6 +53,23 @@ namespace Vista.Core.Adapters.Models
         public DateTimeOffset CreatedAt { get; set; }
         public int LikeCount { get; set; }
         public string ParentCommentId { get; set; } // null=一级评论
+
+        /// <summary>
+        /// 评论结构化朗读文本。争渡 Tab 到评论卡片时通过 CommentAutomationPeer.GetNameCore 读取，
+        /// 不依赖内置 SAPI；NarrationService 手动朗读时也共用此格式。
+        /// </summary>
+        /// <param name="floorIndex">楼层号（1 起）。传 0 不显示楼层。</param>
+        public string SpokenLabel(int floorIndex = 0)
+        {
+            var parts = new List<string>(6);
+            if (floorIndex > 0) parts.Add(floorIndex + "楼");
+            parts.Add(AuthorName);
+            if (!string.IsNullOrEmpty(ParentCommentId)) parts.Add("回复");
+            if (CreatedAt != default) parts.Add(CreatedAt.LocalDateTime.ToString("M月d日 H:mm"));
+            parts.Add("说：" + Content);
+            if (LikeCount > 0) parts.Add(LikeCount + "赞");
+            return string.Join("，", parts);
+        }
     }
 
     public sealed class UserProfile
