@@ -19,19 +19,19 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'
 
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v2
         with:
-          msbuild-version: '17.9'
+          vs-version: '17'
 
       - name: Restore NuGet packages
         run: dotnet restore Vista.sln --verbosity minimal
@@ -60,7 +60,7 @@ jobs:
 
       - name: Upload build artifacts
         if: github.event_name == 'push'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Vista-net481-win-x64
           path: publish/Vista-net481-win-x64/*.zip
