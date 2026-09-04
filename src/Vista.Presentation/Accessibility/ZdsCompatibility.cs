@@ -59,8 +59,8 @@ namespace Vista.Presentation.Accessibility
 
         private static void WalkAndDemote(DependencyObject parent)
         {
-            int count = parent is System.Windows.Media.Visual v
-                ? System.Windows.Media.VisualTreeHelper.GetChildrenCount(v) : 0;
+            if (!(parent is System.Windows.Media.Visual v)) return;
+            int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(v);
             for (int i = 0; i < count; i++)
             {
                 var child = System.Windows.Media.VisualTreeHelper.GetChild(v, i);

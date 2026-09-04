@@ -128,6 +128,6 @@ namespace Vista.Presentation.Accessibility
             _isSpeaking = false;
         }
 
-        public static void SetRate(int rate) => _synth.Rate = Math.Clamp(rate, -10, 10);
+        public static void SetRate(int rate) => _synth.Rate = rate < -10 ? -10 : (rate > 10 ? 10 : rate);
     }
 }

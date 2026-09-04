@@ -18,6 +18,8 @@
   <ItemGroup>
     <!-- System.Speech：SAPI 朗读服务（设计计划 §二 SAPI 5 / System.Speech） -->
     <Reference Include="System.Speech" />
+    <!-- System.Net.Http：App.xaml.cs BuildClientFactory 中直接 new HttpClient()，net481 需显式引用 -->
+    <Reference Include="System.Net.Http" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Vista.Core\Vista.Core.csproj" />

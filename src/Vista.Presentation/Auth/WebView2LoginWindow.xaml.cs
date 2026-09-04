@@ -37,7 +37,7 @@ namespace Vista.Presentation.Auth
             {
                 await LoginWebView.EnsureCoreWebView2Async(null);
             }
-            catch (WebView2RuntimeNotFoundException ex)
+            catch (WebView2RuntimeNotFoundException)
             {
                 LoginStatus.Text = "未检测到 WebView2 运行时，请先安装。";
                 MessageBox.Show("需要先安装 Microsoft Edge WebView2 Runtime。\n下载地址：https://developer.microsoft.com/microsoft-edge/webview2/", "Vista");
@@ -47,7 +47,7 @@ namespace Vista.Presentation.Auth
             string url = PlatformXhs.IsChecked == true
                 ? "https://www.xiaohongshu.com/"
                 : "https://passport.weibo.com/sso/signin";
-            LoginWebView.CoreWebView2.Source = new Uri(url);
+            LoginWebView.CoreWebView2.Navigate(url);
             LoginStatus.Text = "已加载登录页，请在页面中完成登录。登录成功后凭证将加密保存。";
         }
 
