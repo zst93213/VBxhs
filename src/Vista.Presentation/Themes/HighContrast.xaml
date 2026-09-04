@@ -13,9 +13,11 @@
     <SolidColorBrush x:Key="BrandTextBrush" Color="#FF1A1759"/>
 
     <!-- 焦点环：2px 实线品牌色 + 内白边，暗色模式自动反色。
-         用 FocusVisualStyle 全局套用，保证 Tab/箭头都能看到焦点。 -->
+         WPF 标准模式：FocusVisualStyle 属性的类型是 Style（不是 ControlTemplate），
+         这个 Style 是 Control-targeted，内部 Setter 改 Control.Template 为焦点环 ControlTemplate；
+         任何 Control 的 FocusVisualStyle 属性都可以直接赋这个 Style 作为值。 -->
     <Style x:Key="VisibleFocusVisualStyle" TargetType="Control">
-        <Setter Property="FrameworkElement.FocusVisualStyle">
+        <Setter Property="Control.Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Control">
                     <Rectangle Margin="-2" StrokeThickness="2"
@@ -34,7 +36,11 @@
     <Style TargetType="AccessText">
         <Setter Property="FontSize" Value="16"/>
     </Style>
-    <Style TargetType="Button" BasedOn="{StaticResource VisibleFocusVisualStyle}">
+    <!-- Button：把 VisibleFocusVisualStyle 显式应用到 FocusVisualStyle 属性，
+         而不是 BasedOn 继承——后者会让 Button.Template 被覆盖成焦点环 Rectangle，
+         按钮 Content 就消失了。 -->
+    <Style TargetType="Button">
+        <Setter Property="FrameworkElement.FocusVisualStyle" Value="{StaticResource VisibleFocusVisualStyle}"/>
         <Setter Property="FontSize" Value="16"/>
         <Setter Property="Padding" Value="10,4"/>
     </Style>
