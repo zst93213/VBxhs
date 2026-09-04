@@ -7,8 +7,15 @@
     <Description>HTTP 客户端、SQLite 缓存、Serilog 日志、配置中心</Description>
   </PropertyGroup>
   <ItemGroup>
+    <!-- net481 框架程序集：HttpClient / HttpResponseMessage 在 System.Net.Http；
+         ConcurrentDictionary/File 在 mscorlib 与 System；不需要额外引用 -->
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Serilog 2.x 使用 ILogEventPropertyFactory API（与 SerilogBootstrap.cs 中的 SecretMaskingDestructurer 一致）；
+         3.x 改为 ILogEventPropertyValueFactory，会破坏现有代码。 -->
     <PackageReference Include="Polly" Version="7.2.4" />
-    <PackageReference Include="Serilog" Version="3.0.1" />
+    <PackageReference Include="Serilog" Version="2.12.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="4.0.1" />
     <PackageReference Include="System.Data.SQLite.Core" Version="1.0.117" />

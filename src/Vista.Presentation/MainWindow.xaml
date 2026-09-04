@@ -1,7 +1,9 @@
 <Window x:Class="Vista.Presentation.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Vista — 无障碍版微博 & 小红书聚合客户端"
+        xmlns:a11y="clr-namespace:Vista.Presentation.Accessibility"
+        xmlns:core="clr-namespace:Vista.Core.Adapters.Models;assembly=Vista.Core"
+        Title="Vista — 无障碍版微博 &amp; 小红书聚合客户端"
         Height="720" Width="1280"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource SurfaceBrush}"
@@ -9,6 +11,43 @@
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType">
+    <Window.Resources>
+        <!-- 信息流卡片模板：把每条 PostCard 包成 CardItem，CardAutomationPeer 据此暴露结构化朗读字段。
+             DataType=PostCard 表示 ItemsControl 渲染 PostCard 类型项时套用本模板；
+             模板根是 a11y:CardItem，其 Post 属性绑定到当前 PostCard。 -->
+        <DataTemplate x:Key="PostCardTemplate" DataType="{x:Type core:PostCard}">
+            <a11y:CardItem Post="{Binding}">
+                <a11y:CardItem.Content>
+                    <StackPanel Margin="0,6">
+                        <TextBlock FontWeight="Bold" Text="{Binding AuthorName}"/>
+                        <TextBlock Text="{Binding TextSummary}" TextWrapping="Wrap" MaxHeight="60"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <TextBlock Foreground="{StaticResource TextMutedBrush}" FontSize="13"
+                                       Text="{Binding LikeCount, StringFormat=👍 {0}}"/>
+                            <TextBlock Foreground="{StaticResource TextMutedBrush}" FontSize="13" Margin="12,0,0,0"
+                                       Text="{Binding CommentCount, StringFormat=💬 {0}}"/>
+                            <TextBlock Foreground="{StaticResource TextMutedBrush}" FontSize="13" Margin="12,0,0,0"
+                                       Text="{Binding RepostCount, StringFormat=🔁 {0}}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </a11y:CardItem.Content>
+            </a11y:CardItem>
+        </DataTemplate>
+
+        <!-- 评论模板：把每条 Comment 包成 CommentItem，CommentAutomationPeer 据此按楼层朗读 -->
+        <DataTemplate x:Key="CommentTemplate" DataType="{x:Type core:Comment}">
+            <a11y:CommentItem Comment="{Binding}">
+                <a11y:CommentItem.Content>
+                    <StackPanel Margin="0,4">
+                        <TextBlock FontWeight="Bold" Text="{Binding AuthorName}"/>
+                        <TextBlock Text="{Binding Content}" TextWrapping="Wrap"/>
+                        <TextBlock Foreground="{StaticResource TextMutedBrush}" FontSize="13"
+                                   Text="{Binding LikeCount, StringFormat=❤ {0}}"/>
+                    </StackPanel>
+                </a11y:CommentItem.Content>
+            </a11y:CommentItem>
+        </DataTemplate>
+    </Window.Resources>
     <!-- AutomationProperties.Name：争渡读屏打开窗口时直接朗读完整标题 -->
     <Window.AutomationProperties>
         <AutomationProperties>Name>Vista 无障碍版微博与小红书聚合客户端主窗口</AutomationProperties>
@@ -29,7 +68,8 @@
                 <AccessText>当前账号：</AccessText>
                 <ComboBox x:Name="AccountChip" Width="260" Margin="8,0,16,0"
                           AutomationProperties.Name="当前账号选择"
-                          AutomationProperties.HelpText="展开后按上下方向键选择已登录账号，回车切换。Ctrl 加数字键可快速切换。"/>
+                          AutomationProperties.HelpText="展开后按上下方向键选择已登录账号，回车切换。Ctrl 加数字键可快速切换。"
+                          SelectionChanged="OnAccountChanged"/>
                 <Button Content="添加账号" Padding="10,2" Margin="0,0,6,0"
                         AutomationProperties.Name="添加新账号（微博或小红书），打开扫码登录窗口"
                         Click="OnAddAccount"/>
@@ -43,6 +83,15 @@
                 <Button Content="刷新" Padding="10,2" Margin="0,0,6,0"
                         AutomationProperties.Name="刷新信息流，按 F5 快捷键也可触发"
                         Click="OnRefresh"/>
+                <Button Content="搜索" Padding="10,2" Margin="0,0,6,0"
+                        AutomationProperties.Name="用搜索框的关键词在微博或小红书上搜索内容，回车也可触发"
+                        Click="OnSearch"/>
+                <Button Content="点赞" Padding="10,2" Margin="0,0,6,0"
+                        AutomationProperties.Name="一键点赞当前卡片，快捷键 Alt L"
+                        Click="OnLike"/>
+                <Button Content="收藏" Padding="10,2" Margin="0,0,6,0"
+                        AutomationProperties.Name="一键收藏当前卡片，快捷键 Alt B"
+                        Click="OnFavorite"/>
                 <Button Content="转发或分享" Padding="10,2" Margin="0,0,6,0"
                         AutomationProperties.Name="一键转发微博或分享当前笔记到剪贴板，快捷键 Alt F"
                         Click="OnRepost"/>
@@ -58,12 +107,16 @@
                 <Button Content="保存离线缓存" Padding="10,2" Margin="0,0,6,0"
                         AutomationProperties.Name="将当前信息流保存到本地缓存，断网时也能查看"
                         Click="OnSaveOffline"/>
+                <Button Content="账号状态" Padding="10,2" Margin="0,0,6,0"
+                        AutomationProperties.Name="检查当前账号是否被限流，快捷键 Alt H"
+                        Click="OnCheckHealth"/>
                 <Button Content="设置" Padding="10,2" Margin="0,0,0,0"
                         AutomationProperties.Name="打开设置：主题、快捷键、朗读方式、字体大小"/>
             </StackPanel>
 
             <!-- 中：搜索框 -->
             <TextBox x:Name="SearchBox" Margin="18,6" VerticalContentAlignment="Center"
+                     KeyDown="OnSearchBoxKeyDown"
                      AutomationProperties.Name="搜索框，输入关键词后回车在微博或小红书上搜索内容"
                      AutomationProperties.HelpText="回车执行搜索，搜索范围随当前账号平台切换，微博搜内容，小红书搜笔记。"/>
         </DockPanel>
@@ -98,6 +151,7 @@
                 <ListView x:Name="CardList"
                           Background="Transparent"
                           BorderThickness="0"
+                          ItemTemplate="{StaticResource PostCardTemplate}"
                           AutomationProperties.Name="信息流内容列表"
                           AutomationProperties.HelpText="按 J 键跳到下一张卡片，K 键回到上一张，Enter 键打开详情，L 键点赞当前卡片，C 键评论当前卡片。">
                 </ListView>
@@ -114,6 +168,7 @@
                     <ListView x:Name="CommentList"
                               Background="Transparent"
                               BorderThickness="0"
+                              ItemTemplate="{StaticResource CommentTemplate}"
                               AutomationProperties.Name="当前卡片的评论列表"
                               AutomationProperties.HelpText="按上下方向键切换评论，争渡读屏会按楼层顺序朗读评论内容、作者、时间和点赞数。按 C 键可以回复当前评论。"/>
                 </DockPanel>

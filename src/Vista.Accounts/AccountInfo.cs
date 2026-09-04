@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Vista.Core;
+using Vista.Core.Models;
 
 namespace Vista.Accounts
 {

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Data.SQLite;
 
@@ -84,7 +85,7 @@ VALUES (@key, @value, @createdAt, @expiresAt);
             cmd.Parameters.AddWithValue("@key", key);
             cmd.Parameters.AddWithValue("@value", json);
             cmd.Parameters.AddWithValue("@createdAt", DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-            cmd.Parameters.AddWithValue("@expiresAt", (object?)expiresAt ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@expiresAt", expiresAt.HasValue ? (object)expiresAt.Value : DBNull.Value);
             await cmd.ExecuteNonQueryAsync();
         }
 

@@ -9,6 +9,11 @@
     <Description>微博/小红书 API 适配器；鉴权、签名、限速、重试</Description>
   </PropertyGroup>
   <ItemGroup>
+    <!-- net481 框架程序集：HttpRequestMessage / MultipartFormDataContent 在 System.Net.Http；
+         Path/File 在 System.IO（mscorlib 自带，无需显式引用） -->
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
   </ItemGroup>
   <ItemGroup>
