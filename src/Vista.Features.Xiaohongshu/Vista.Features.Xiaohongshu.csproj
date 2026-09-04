@@ -2,7 +2,6 @@
 <!-- Vista.Features.Xiaohongshu：小红书业务用例层。 -->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net481</TargetFramework>
     <UseWPF>false</UseWPF>
     <RootNamespace>Vista.Features.Xiaohongshu</RootNamespace>
   </PropertyGroup>

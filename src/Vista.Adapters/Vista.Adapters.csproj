@@ -3,13 +3,12 @@
      设计计划 §三第 3 层。新增平台只加一个 Adapter（插件化，M5 预留抖音/B 站接入点）。 -->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net481</TargetFramework>
     <UseWPF>false</UseWPF>
     <RootNamespace>Vista.Adapters</RootNamespace>
     <Description>微博/小红书 API 适配器；鉴权、签名、限速、重试</Description>
   </PropertyGroup>
   <ItemGroup>
-    <!-- net481 框架程序集：HttpRequestMessage / MultipartFormDataContent 在 System.Net.Http；
+    <!-- net48 框架程序集：HttpRequestMessage / MultipartFormDataContent 在 System.Net.Http；
          Path/File 在 System.IO（mscorlib 自带，无需显式引用） -->
     <Reference Include="System.Net.Http" />
   </ItemGroup>

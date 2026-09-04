@@ -3,7 +3,6 @@
      设计计划 §三第 1 层、§四无障碍准则 的落地。 -->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net481</TargetFramework>
     <UseWPF>true</UseWPF>
     <OutputType>WinExe</OutputType>
     <RootNamespace>Vista.Presentation</RootNamespace>
@@ -18,7 +17,7 @@
   <ItemGroup>
     <!-- System.Speech：SAPI 朗读服务（设计计划 §二 SAPI 5 / System.Speech） -->
     <Reference Include="System.Speech" />
-    <!-- System.Net.Http：App.xaml.cs BuildClientFactory 中直接 new HttpClient()，net481 需显式引用 -->
+    <!-- System.Net.Http：App.xaml.cs BuildClientFactory 中直接 new HttpClient()，net48 需显式引用 -->
     <Reference Include="System.Net.Http" />
   </ItemGroup>
   <ItemGroup>

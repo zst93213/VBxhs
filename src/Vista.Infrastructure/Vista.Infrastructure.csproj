@@ -1,13 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net481</TargetFramework>
     <UseWPF>false</UseWPF>
     <RootNamespace>Vista.Infrastructure</RootNamespace>
     <Description>HTTP 客户端、SQLite 缓存、Serilog 日志、配置中心</Description>
   </PropertyGroup>
   <ItemGroup>
-    <!-- net481 框架程序集：HttpClient / HttpResponseMessage 在 System.Net.Http；
+    <!-- net48 框架程序集：HttpClient / HttpResponseMessage 在 System.Net.Http；
          ConcurrentDictionary/File 在 mscorlib 与 System；不需要额外引用 -->
     <Reference Include="System.Net.Http" />
   </ItemGroup>

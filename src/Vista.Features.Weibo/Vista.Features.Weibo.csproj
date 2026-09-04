@@ -3,7 +3,6 @@
      用例粒度参考 redbook CLI。 -->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net481</TargetFramework>
     <UseWPF>false</UseWPF>
     <RootNamespace>Vista.Features.Weibo</RootNamespace>
   </PropertyGroup>

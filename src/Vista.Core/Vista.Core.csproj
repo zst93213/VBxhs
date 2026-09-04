@@ -3,7 +3,6 @@
      设计参考 sinaweibopy 的 mixin 模式 + Xiaohongshu-API 的 Crawler/Interaction 二分。 -->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net481</TargetFramework>
     <UseWPF>false</UseWPF>
     <RootNamespace>Vista.Core</RootNamespace>
     <Description>核心接口与统一模型（IPlatformAdapter / ICrawlerAdapter / IInteractionAdapter）</Description>
