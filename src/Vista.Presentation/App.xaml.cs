@@ -8,6 +8,7 @@ using Vista.Adapters.Weibo;
 using Vista.Adapters.Xiaohongshu;
 using Vista.Core;
 using Vista.Core.Adapters;
+using Vista.Core.Models;
 using Vista.Features.Weibo.UseCases;
 using Vista.Features.Xiaohongshu.UseCases;
 using Vista.Infrastructure.Cache;
