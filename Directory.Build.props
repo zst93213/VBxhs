@@ -2,8 +2,10 @@
 <!-- 解决方案级统一属性。所有项目共享。 -->
 <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <!-- 目标框架：.NET Framework 4.8.1（Windows 10 1809+ 自带运行时，零部署依赖） -->
-    <TargetFramework>net481</TargetFramework>
+    <!-- 目标框架：.NET Framework 4.8（Windows 10 1709+ 自带运行时，零部署依赖）
+         不用 4.8.1：4.8.1 仅新增 WinForms 无障碍 API（AccessibleRole 等），WPF 项目用不到；
+         且 4.8.1 装机率远低于 4.8，用 4.8 可避免 supportedRuntime sku 检查导致启动失败 -->
+    <TargetFramework>net48</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Platforms>AnyCPU</Platforms>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>

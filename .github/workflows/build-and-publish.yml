@@ -47,23 +47,23 @@ jobs:
             -c Release `
             -r win-x64 `
             --self-contained false `
-            -o publish/Vista-net481-win-x64/framework-dependent `
+            -o publish/Vista-net48-win-x64/framework-dependent `
             --verbosity minimal
 
       - name: Package zip
         if: github.event_name == 'push'
         shell: pwsh
         run: |
-          $zip = "publish/Vista-net481-win-x64/Vista-net481-win-x64-framework-dependent.zip"
+          $zip = "publish/Vista-net48-win-x64/Vista-net48-win-x64-framework-dependent.zip"
           if (Test-Path $zip) { Remove-Item $zip -Force }
-          Compress-Archive -Path "publish/Vista-net481-win-x64/framework-dependent/*" -DestinationPath $zip -Force
+          Compress-Archive -Path "publish/Vista-net48-win-x64/framework-dependent/*" -DestinationPath $zip -Force
 
       - name: Upload build artifacts
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v7
         with:
-          name: Vista-net481-win-x64
-          path: publish/Vista-net481-win-x64/*.zip
+          name: Vista-net48-win-x64
+          path: publish/Vista-net48-win-x64/*.zip
           if-no-files-found: error
           retention-days: 30
 
@@ -71,7 +71,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: publish/Vista-net481-win-x64/*.zip
+          files: publish/Vista-net48-win-x64/*.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
