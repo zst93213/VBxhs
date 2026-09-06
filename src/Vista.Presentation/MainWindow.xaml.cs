@@ -28,6 +28,7 @@ namespace Vista.Presentation
             // 绑定集合
             AccountChip.ItemsSource = _vm.AccountList;
             CardList.ItemsSource = _vm.Cards;
+            HotCardList.ItemsSource = _vm.HotCards;
             CommentList.ItemsSource = _vm.CurrentComments;
             HotSearchList.ItemsSource = _vm.HotSearchItems;
 
@@ -56,14 +57,32 @@ namespace Vista.Presentation
                 _vm.SwitchAccount(info);
         }
 
-        private void OnAddAccount(object sender, RoutedEventArgs e)
+        private async void OnAddAccount(object sender, RoutedEventArgs e)
         {
             var dlg = new WebView2LoginWindow { Owner = this };
-            var result = dlg.ShowDialog();
-            if (result == true || dlg.LoginSucceeded)
+            dlg.ShowDialog();
+            if (dlg.LoginSucceeded && dlg.CreatedAccount != null)
             {
+                // 1) 重新加载账号列表
                 _vm.ReloadAccounts();
-                StatusText.Text = "登录成功，已保存账号";
+                // 2) 自动选中刚登录的账号（ComboBox 选中项变化会触发 SwitchAccount，但保险起见再调一次）
+                for (int i = 0; i < _vm.AccountList.Count; i++)
+                {
+                    if (_vm.AccountList[i].Uid == dlg.CreatedAccount.Uid)
+                    {
+                        AccountChip.SelectedIndex = i;
+                        break;
+                    }
+                }
+                _vm.SwitchAccount(dlg.CreatedAccount);
+                // 3) 自动加载关注信息流（用户登录后第一眼想看的内容）
+                FeedTabs.SelectedItem = TabFollowing; // 切到关注选项卡
+                StatusText.Text = "登录成功，正在加载关注信息流...";
+                await _vm.RefreshFeedAsync();
+            }
+            else
+            {
+                StatusText.Text = "登录未完成或已取消";
             }
         }
 
@@ -75,18 +94,39 @@ namespace Vista.Presentation
 
         // ========== 信息流 / 搜索 ==========
 
+        /// <summary>刷新按钮：根据当前选中的选项卡刷新对应内容。</summary>
         private async void OnRefresh(object sender, RoutedEventArgs e)
-            => await _vm.RefreshFeedAsync();
+        {
+            if (FeedTabs?.SelectedItem is TabItem tab && tab.Tag is string tag)
+            {
+                switch (tag)
+                {
+                    case "Following": await _vm.RefreshFeedAsync(); break;
+                    case "Recommend":
+                        _vm.HotCards.Clear(); // 强制重新拉取
+                        await _vm.LoadHotWeiboAsync(); break;
+                    case "HotSearch":
+                        _vm.HotSearchItems.Clear();
+                        await _vm.LoadHotSearchAsync(); break;
+                }
+            }
+            else
+            {
+                await _vm.RefreshFeedAsync();
+            }
+        }
 
         private async void OnHotWeibo(object sender, RoutedEventArgs e)
         {
-            ShowCardView();
+            FeedTabs.SelectedItem = TabRecommend;
+            _vm.HotCards.Clear();
             await _vm.LoadHotWeiboAsync();
         }
 
         private async void OnHotSearch(object sender, RoutedEventArgs e)
         {
-            ShowHotSearchView();
+            FeedTabs.SelectedItem = TabHotSearch;
+            _vm.HotSearchItems.Clear();
             await _vm.LoadHotSearchAsync();
         }
 
@@ -221,10 +261,11 @@ namespace Vista.Presentation
             }
         }
 
-        /// <summary>键盘选中卡片时也更新 CurrentCard，确保评论/点赞等操作有目标。</summary>
+        /// <summary>键盘选中卡片时也更新 CurrentCard，确保评论/点赞等操作有目标。
+        /// 关注 Tab 和推荐 Tab 共用此处理（sender 区分）。</summary>
         private void OnCardSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
-            if (CardList.SelectedItem is PostCard card)
+            if (sender is System.Windows.Controls.ListView lv && lv.SelectedItem is PostCard card)
                 _vm.CurrentCard = card;
         }
 
@@ -232,8 +273,40 @@ namespace Vista.Presentation
         {
             if (HotSearchList.SelectedItem is HotSearchItem item)
             {
-                ShowCardView();
+                // 双击热搜 → 切到关注 Tab 并搜索该关键词
+                FeedTabs.SelectedItem = TabFollowing;
                 await _vm.SearchAsync(item.Keyword);
+            }
+        }
+
+        // ========== 选项卡切换：自动加载对应内容 ==========
+
+        /// <summary>切换 关注 / 推荐 / 微博热搜 选项卡时自动加载对应数据。
+        /// 登录成功后默认选中"关注"也会触发此方法。</summary>
+        private async void OnFeedTabChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // 构造期间（_vm 还没赋值，或 FeedTabs 还在初始化）触发则跳过，避免 NullRef
+            if (_vm == null || FeedTabs == null) return;
+            if (e.RemovedItems.Count == 0 && e.AddedItems.Count > 0
+                && FeedTabs.SelectedItem is TabItem tab && tab.Tag is string tag)
+                _ = LoadTabContentAsync(tag);
+            else if (FeedTabs.SelectedItem is TabItem t && t.Tag is string tag2)
+                _ = LoadTabContentAsync(tag2);
+        }
+
+        private async System.Threading.Tasks.Task LoadTabContentAsync(string tag)
+        {
+            switch (tag)
+            {
+                case "Following":
+                    if (_vm.Cards.Count == 0) await _vm.RefreshFeedAsync();
+                    break;
+                case "Recommend":
+                    if (_vm.HotCards.Count == 0) await _vm.LoadHotWeiboAsync();
+                    break;
+                case "HotSearch":
+                    if (_vm.HotSearchItems.Count == 0) await _vm.LoadHotSearchAsync();
+                    break;
             }
         }
 
@@ -253,27 +326,21 @@ namespace Vista.Presentation
                     OnSettings(sender, e);
                     return;
                 }
-                _vm.NavigateTo(tag);
-                if (tag == "HotSearch")
-                    ShowHotSearchView();
-                else
-                    ShowCardView();
+                // 把左侧导航映射到中栏选项卡
+                switch (tag)
+                {
+                    case "Home": FeedTabs.SelectedItem = TabFollowing; break;
+                    case "Hot": FeedTabs.SelectedItem = TabRecommend; break;
+                    case "HotSearch": FeedTabs.SelectedItem = TabHotSearch; break;
+                    case "Me": _vm.NavigateTo("Me"); break;
+                }
             }
         }
 
         // ========== 视图切换辅助 ==========
 
-        private void ShowCardView()
-        {
-            CardList.Visibility = System.Windows.Visibility.Visible;
-            HotSearchList.Visibility = System.Windows.Visibility.Collapsed;
-        }
-
-        private void ShowHotSearchView()
-        {
-            CardList.Visibility = System.Windows.Visibility.Collapsed;
-            HotSearchList.Visibility = System.Windows.Visibility.Visible;
-        }
+        private void ShowCardView() => FeedTabs.SelectedItem = TabFollowing;
+        private void ShowHotSearchView() => FeedTabs.SelectedItem = TabHotSearch;
 
         private void ShowUserProfile()
         {

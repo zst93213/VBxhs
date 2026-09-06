@@ -153,43 +153,56 @@
             </MenuItem>
         </Menu>
 
-        <!-- 第二行：常用工具栏，只保留最常用动作（账号、刷新、热门、热搜、发布、搜索） -->
+        <!-- 第二行：常用工具栏。左侧账号区，中间搜索框，右侧高频互动按钮。
+             不常用功能（管理账号/账号状态/保存离线/超话/设置等）收入 ALT 菜单栏。 -->
         <Grid Grid.Row="1" Background="{StaticResource SurfaceMutedBrush}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
             <AccessText Grid.Column="0" Margin="12,8,4,8">当前账号：</AccessText>
-            <ComboBox x:Name="AccountChip" Grid.Column="1" Width="220" Margin="4,6,8,6"
+            <ComboBox x:Name="AccountChip" Grid.Column="1" Width="200" Margin="4,6,8,6"
                       AutomationProperties.Name="当前账号选择"
                       AutomationProperties.HelpText="展开后按上下方向键选择已登录账号，回车切换。"
                       SelectionChanged="OnAccountChanged"/>
             <Button Grid.Column="2" Content="添加账号" Padding="10,2" Margin="0,0,6,0"
                     AutomationProperties.Name="添加新账号，打开微博扫码登录窗口"
                     Click="OnAddAccount"/>
-            <Button Grid.Column="3" Content="刷新" Padding="10,2" Margin="0,0,6,0"
-                    AutomationProperties.Name="刷新信息流，按 F5 快捷键也可触发"
-                    Click="OnRefresh"/>
-            <Button Grid.Column="4" Content="热门微博" Padding="10,2" Margin="0,0,6,0"
-                    AutomationProperties.Name="加载热门微博推荐流"
-                    Click="OnHotWeibo"/>
-            <Button Grid.Column="5" Content="热搜榜" Padding="10,2" Margin="0,0,6,0"
-                    AutomationProperties.Name="查看微博热搜榜"
-                    Click="OnHotSearch"/>
-            <TextBox x:Name="SearchBox" Grid.Column="6" Margin="8,6" VerticalContentAlignment="Center"
+            <TextBox x:Name="SearchBox" Grid.Column="3" Margin="8,6" VerticalContentAlignment="Center"
                      KeyDown="OnSearchBoxKeyDown"
                      AutomationProperties.Name="搜索框，输入关键词后回车在微博上搜索内容"
                      AutomationProperties.HelpText="回车执行搜索，在微博上搜索相关内容。"/>
-            <Button Grid.Column="7" Content="发布微博" Padding="10,2" Margin="6,0,12,0"
+            <Button Grid.Column="4" Content="发布" Padding="10,2" Margin="6,0,6,0"
                     AutomationProperties.Name="打开发布微博窗口"
                     Click="OnPublish"/>
+            <Button Grid.Column="5" Content="刷新" Padding="10,2" Margin="0,0,6,0"
+                    AutomationProperties.Name="刷新当前选项卡内容，快捷键 F5"
+                    Click="OnRefresh"/>
+            <Button Grid.Column="6" Content="点赞" Padding="10,2" Margin="0,0,6,0"
+                    AutomationProperties.Name="点赞当前卡片，快捷键 Alt+L"
+                    Click="OnLike"/>
+            <Button Grid.Column="7" Content="收藏" Padding="10,2" Margin="0,0,6,0"
+                    AutomationProperties.Name="收藏当前卡片"
+                    Click="OnFavorite"/>
+            <Button Grid.Column="8" Content="转发" Padding="10,2" Margin="0,0,6,0"
+                    AutomationProperties.Name="转发当前微博"
+                    Click="OnRepost"/>
+            <Button Grid.Column="9" Content="评论" Padding="10,2" Margin="0,0,6,0"
+                    AutomationProperties.Name="加载当前卡片的评论列表"
+                    Click="OnLoadComments"/>
+            <Button Grid.Column="10" Content="用户主页" Padding="10,2" Margin="0,0,12,0"
+                    AutomationProperties.Name="查看当前卡片作者的主页"
+                    Click="OnViewAuthor"/>
         </Grid>
 
         <!-- 三栏主体 -->
@@ -213,22 +226,42 @@
                 <ListBoxItem Tag="Settings" AutomationProperties.Name="设置"/>
             </ListBox>
 
-            <!-- 中栏：内容区（根据视图切换） -->
-            <Border Grid.Column="1" Padding="12">
-                <Grid>
-                    <ListView x:Name="CardList" Background="Transparent" BorderThickness="0"
-                              ItemTemplate="{StaticResource PostCardTemplate}"
-                              AutomationProperties.Name="信息流内容列表"
-                              AutomationProperties.HelpText="按 J 键下一张，K 键上一张，Enter 或双击打开详情与评论，L 点赞。"
-                              SelectionChanged="OnCardSelectionChanged"
-                              MouseDoubleClick="OnCardDoubleClick"/>
-                    <ListView x:Name="HotSearchList" Background="Transparent" BorderThickness="0"
-                              ItemTemplate="{StaticResource HotSearchTemplate}"
-                              AutomationProperties.Name="热搜榜列表"
-                              AutomationProperties.HelpText="按上下方向键选择热搜，回车搜索该关键词。"
-                              Visibility="Collapsed"
-                              MouseDoubleClick="OnHotSearchDoubleClick"/>
-                </Grid>
+            <!-- 中栏：内容区 —— 三个选项卡：关注 / 推荐 / 微博热搜 -->
+            <Border Grid.Column="1" Padding="12,4,12,12">
+                <TabControl x:Name="FeedTabs"
+                            SelectionChanged="OnFeedTabChanged"
+                            AutomationProperties.Name="内容选项卡"
+                            AutomationProperties.HelpText="使用左右方向键在 关注 / 推荐 / 微博热搜 三个选项卡之间切换，切换时自动加载对应内容。">
+                    <!-- 关注信息流 -->
+                    <TabItem Header="关注" x:Name="TabFollowing" Tag="Following"
+                             AutomationProperties.Name="关注选项卡，显示已关注用户的信息流">
+                        <ListView x:Name="CardList" Background="Transparent" BorderThickness="0"
+                                  ItemTemplate="{StaticResource PostCardTemplate}"
+                                  AutomationProperties.Name="关注信息流列表"
+                                  AutomationProperties.HelpText="按 J 键下一张，K 键上一张，Enter 或双击打开详情与评论，L 点赞。"
+                                  SelectionChanged="OnCardSelectionChanged"
+                                  MouseDoubleClick="OnCardDoubleClick"/>
+                    </TabItem>
+                    <!-- 推荐微博 -->
+                    <TabItem Header="推荐" x:Name="TabRecommend" Tag="Recommend"
+                             AutomationProperties.Name="推荐选项卡，显示微博为你推荐的热门内容">
+                        <ListView x:Name="HotCardList" Background="Transparent" BorderThickness="0"
+                                  ItemTemplate="{StaticResource PostCardTemplate}"
+                                  AutomationProperties.Name="推荐微博列表"
+                                  AutomationProperties.HelpText="按 J 键下一张，K 键上一张，Enter 或双击打开详情与评论。"
+                                  SelectionChanged="OnCardSelectionChanged"
+                                  MouseDoubleClick="OnCardDoubleClick"/>
+                    </TabItem>
+                    <!-- 微博热搜榜 -->
+                    <TabItem Header="微博热搜" x:Name="TabHotSearch" Tag="HotSearch"
+                             AutomationProperties.Name="微博热搜选项卡，显示实时热搜榜">
+                        <ListView x:Name="HotSearchList" Background="Transparent" BorderThickness="0"
+                                  ItemTemplate="{StaticResource HotSearchTemplate}"
+                                  AutomationProperties.Name="热搜榜列表"
+                                  AutomationProperties.HelpText="按上下方向键选择热搜，回车搜索该关键词。"
+                                  MouseDoubleClick="OnHotSearchDoubleClick"/>
+                    </TabItem>
+                </TabControl>
             </Border>
 
             <!-- 右栏：评论区 + 评论输入 -->

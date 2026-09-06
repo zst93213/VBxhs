@@ -29,6 +29,8 @@ namespace Vista.Presentation
         private readonly ICacheStore _cache;
 
         public ObservableCollection<PostCard> Cards { get; } = new ObservableCollection<PostCard>();
+        /// <summary>推荐流（独立于关注信息流，便于选项卡切换时不互相覆盖）。</summary>
+        public ObservableCollection<PostCard> HotCards { get; } = new ObservableCollection<PostCard>();
         public ObservableCollection<AccountInfo> AccountList { get; } = new ObservableCollection<AccountInfo>();
         public ObservableCollection<Comment> CurrentComments { get; } = new ObservableCollection<Comment>();
         public ObservableCollection<HotSearchItem> HotSearchItems { get; } = new ObservableCollection<HotSearchItem>();
@@ -207,23 +209,23 @@ namespace Vista.Presentation
             Accessibility.NarrationService.SpeakAuto(Status);
         }
 
-        /// <summary>热门微博推荐流。</summary>
+        /// <summary>热门微博推荐流（写入 HotCards 集合，与关注信息流隔离）。</summary>
         public async Task LoadHotWeiboAsync()
         {
             if (_accountContext.Current == null) { Status = "请先选择账号"; return; }
             IsRefreshing = true;
-            Status = "正在加载热门微博...";
+            Status = "正在加载推荐微博...";
             try
             {
                 var adapter = CurrentAdapter;
                 if (adapter == null) { Status = "无可用 Adapter"; return; }
                 var result = await adapter.GetHotWeiboAsync(_accountContext.EnsureCurrent(), null, default);
-                Cards.Clear();
-                foreach (var card in result.Items) Cards.Add(card);
-                Status = $"已加载 {Cards.Count} 条热门微博";
+                HotCards.Clear();
+                foreach (var card in result.Items) HotCards.Add(card);
+                Status = $"已加载 {HotCards.Count} 条推荐微博";
                 OfflineMode = false;
             }
-            catch (Exception ex) { Status = "加载热门微博失败：" + ex.Message; }
+            catch (Exception ex) { Status = "加载推荐微博失败：" + ex.Message; }
             finally { IsRefreshing = false; }
             Accessibility.NarrationService.SpeakAuto(Status);
         }
