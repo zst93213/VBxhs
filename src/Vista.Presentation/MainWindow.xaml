@@ -72,79 +72,128 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- 顶部工具栏 -->
-        <DockPanel Grid.Row="0" LastChildFill="True" Background="{StaticResource SurfaceMutedBrush}">
-            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" Margin="12,8">
-                <AccessText>当前账号：</AccessText>
-                <ComboBox x:Name="AccountChip" Width="220" Margin="8,0,12,0"
-                          AutomationProperties.Name="当前账号选择"
-                          AutomationProperties.HelpText="展开后按上下方向键选择已登录账号，回车切换。"
-                          SelectionChanged="OnAccountChanged"/>
-                <Button Content="添加账号" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="添加新账号，打开微博扫码登录窗口"
-                        Click="OnAddAccount"/>
-                <Button Content="管理账号" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="打开账号管理器：查看、删除已登录账号"
-                        Click="OnManageAccounts"/>
-            </StackPanel>
+        <!-- 顶部菜单栏：按 Alt 键激活，再用方向键选择；不常用的功能都收纳于此 -->
+        <Menu Grid.Row="0" Background="{StaticResource SurfaceMutedBrush}" Padding="6,2"
+              AutomationProperties.Name="主菜单栏"
+              AutomationProperties.HelpText="按 Alt 键激活菜单，再用左右方向键切换 文件/视图/互动/工具 菜单，上下方向键选择命令，回车执行。">
+            <MenuItem Header="文件(_F)"
+                      AutomationProperties.Name="文件菜单，包含账号管理与离线保存等命令">
+                <MenuItem Header="添加账号(_A)..."
+                          AutomationProperties.Name="添加新账号，打开微博扫码登录窗口"
+                          Click="OnAddAccount"/>
+                <MenuItem Header="管理账号(_M)..."
+                          AutomationProperties.Name="打开账号管理器：查看、删除已登录账号"
+                          Click="OnManageAccounts"/>
+                <Separator/>
+                <MenuItem Header="账号状态(_H)"
+                          AutomationProperties.Name="检查当前账号是否被限流"
+                          Click="OnCheckHealth"/>
+                <MenuItem Header="保存离线(_S)"
+                          AutomationProperties.Name="将当前信息流保存到本地缓存"
+                          Click="OnSaveOffline"/>
+            </MenuItem>
+            <MenuItem Header="视图(_V)"
+                      AutomationProperties.Name="视图菜单，切换信息流、热门、热搜">
+                <MenuItem Header="关注信息流(_H)"
+                          AutomationProperties.Name="切换到关注信息流"
+                          Click="OnRefresh"/>
+                <MenuItem Header="热门微博(_O)"
+                          AutomationProperties.Name="加载热门微博推荐流"
+                          Click="OnHotWeibo"/>
+                <MenuItem Header="热搜榜(_T)"
+                          AutomationProperties.Name="查看微博热搜榜"
+                          Click="OnHotSearch"/>
+                <Separator/>
+                <MenuItem Header="刷新(_R)"
+                          AutomationProperties.Name="刷新当前信息流，快捷键 F5"
+                          InputGestureText="F5"
+                          Click="OnRefresh"/>
+            </MenuItem>
+            <MenuItem Header="互动(_I)"
+                      AutomationProperties.Name="互动菜单，对当前卡片执行点赞收藏转发等">
+                <MenuItem Header="点赞(_L)"
+                          AutomationProperties.Name="一键点赞当前卡片，快捷键 Alt+L"
+                          InputGestureText="Alt+L"
+                          Click="OnLike"/>
+                <MenuItem Header="收藏(_B)"
+                          AutomationProperties.Name="一键收藏当前卡片，快捷键 Alt+B"
+                          InputGestureText="Alt+B"
+                          Click="OnFavorite"/>
+                <MenuItem Header="转发(_R)"
+                          AutomationProperties.Name="一键转发当前微博，快捷键 Alt+R"
+                          Click="OnRepost"/>
+                <Separator/>
+                <MenuItem Header="关注作者(_F)"
+                          AutomationProperties.Name="关注当前卡片的作者"
+                          Click="OnFollowAuthor"/>
+                <MenuItem Header="查看作者主页(_U)"
+                          AutomationProperties.Name="查看当前卡片作者的主页"
+                          Click="OnViewAuthor"/>
+                <MenuItem Header="加载评论(_C)"
+                          AutomationProperties.Name="加载当前卡片的评论列表"
+                          Click="OnLoadComments"/>
+            </MenuItem>
+            <MenuItem Header="工具(_T)"
+                      AutomationProperties.Name="工具菜单，包含发布、超话、设置">
+                <MenuItem Header="发布微博(_P)..."
+                          AutomationProperties.Name="打开发布微博窗口"
+                          Click="OnPublish"/>
+                <MenuItem Header="超话(_S)..."
+                          AutomationProperties.Name="打开超话浏览与签到窗口"
+                          Click="OnSuperTopic"/>
+                <Separator/>
+                <MenuItem Header="设置(_E)..."
+                          AutomationProperties.Name="打开设置：主题、字体、朗读方式"
+                          Click="OnSettings"/>
+            </MenuItem>
+        </Menu>
 
-            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Margin="12,8">
-                <Button Content="刷新" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="刷新信息流，按 F5 快捷键也可触发"
-                        Click="OnRefresh"/>
-                <Button Content="热门" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="加载热门微博推荐流"
-                        Click="OnHotWeibo"/>
-                <Button Content="热搜" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="查看微博热搜榜"
-                        Click="OnHotSearch"/>
-                <Button Content="发布" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="打开发布微博窗口"
-                        Click="OnPublish"/>
-                <Button Content="点赞" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="一键点赞当前卡片，快捷键 Alt L"
-                        Click="OnLike"/>
-                <Button Content="收藏" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="一键收藏当前卡片，快捷键 Alt B"
-                        Click="OnFavorite"/>
-                <Button Content="转发" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="一键转发当前微博，快捷键 Alt F"
-                        Click="OnRepost"/>
-                <Button Content="关注作者" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="关注当前卡片的作者"
-                        Click="OnFollowAuthor"/>
-                <Button Content="用户主页" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="查看当前卡片作者的主页"
-                        Click="OnViewAuthor"/>
-                <Button Content="超话" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="打开超话浏览与签到窗口"
-                        Click="OnSuperTopic"/>
-                <Button Content="加载评论" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="加载当前卡片的评论列表"
-                        Click="OnLoadComments"/>
-                <Button Content="保存离线" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="将当前信息流保存到本地缓存"
-                        Click="OnSaveOffline"/>
-                <Button Content="账号状态" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="检查当前账号是否被限流"
-                        Click="OnCheckHealth"/>
-                <Button Content="设置" Padding="10,2" Margin="0,0,0,0"
-                        AutomationProperties.Name="打开设置：主题、字体、朗读方式"
-                        Click="OnSettings"/>
-            </StackPanel>
+        <!-- 第二行：常用工具栏，只保留最常用动作（账号、刷新、热门、热搜、发布、搜索） -->
+        <Grid Grid.Row="1" Background="{StaticResource SurfaceMutedBrush}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
 
-            <TextBox x:Name="SearchBox" Margin="18,6" VerticalContentAlignment="Center"
+            <AccessText Grid.Column="0" Margin="12,8,4,8">当前账号：</AccessText>
+            <ComboBox x:Name="AccountChip" Grid.Column="1" Width="220" Margin="4,6,8,6"
+                      AutomationProperties.Name="当前账号选择"
+                      AutomationProperties.HelpText="展开后按上下方向键选择已登录账号，回车切换。"
+                      SelectionChanged="OnAccountChanged"/>
+            <Button Grid.Column="2" Content="添加账号" Padding="10,2" Margin="0,0,6,0"
+                    AutomationProperties.Name="添加新账号，打开微博扫码登录窗口"
+                    Click="OnAddAccount"/>
+            <Button Grid.Column="3" Content="刷新" Padding="10,2" Margin="0,0,6,0"
+                    AutomationProperties.Name="刷新信息流，按 F5 快捷键也可触发"
+                    Click="OnRefresh"/>
+            <Button Grid.Column="4" Content="热门微博" Padding="10,2" Margin="0,0,6,0"
+                    AutomationProperties.Name="加载热门微博推荐流"
+                    Click="OnHotWeibo"/>
+            <Button Grid.Column="5" Content="热搜榜" Padding="10,2" Margin="0,0,6,0"
+                    AutomationProperties.Name="查看微博热搜榜"
+                    Click="OnHotSearch"/>
+            <TextBox x:Name="SearchBox" Grid.Column="6" Margin="8,6" VerticalContentAlignment="Center"
                      KeyDown="OnSearchBoxKeyDown"
                      AutomationProperties.Name="搜索框，输入关键词后回车在微博上搜索内容"
                      AutomationProperties.HelpText="回车执行搜索，在微博上搜索相关内容。"/>
-        </DockPanel>
+            <Button Grid.Column="7" Content="发布微博" Padding="10,2" Margin="6,0,12,0"
+                    AutomationProperties.Name="打开发布微博窗口"
+                    Click="OnPublish"/>
+        </Grid>
 
         <!-- 三栏主体 -->
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="200"/>
                 <ColumnDefinition Width="*"/>
@@ -232,7 +281,7 @@
         </Grid>
 
         <!-- 底部状态栏 -->
-        <StatusBar Grid.Row="2" Background="{StaticResource SurfaceMutedBrush}">
+        <StatusBar Grid.Row="3" Background="{StaticResource SurfaceMutedBrush}">
             <StatusBarItem>
                 <TextBlock x:Name="StatusText" Text="就绪"
                           AutomationProperties.LiveSetting="Polite"

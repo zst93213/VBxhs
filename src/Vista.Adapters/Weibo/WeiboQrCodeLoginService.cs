@@ -309,7 +309,63 @@ namespace Vista.Adapters.Weibo
         {
             using var resp = await _http.GetAsync(url, ct).ConfigureAwait(false);
             // 不用 EnsureSuccessStatusCode，让调用方看到响应体中的错误信息
-            return await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var content = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+            return NormalizeJsonResponse(content, url);
+        }
+
+        /// <summary>
+        /// 规范化微博 SSO 接口返回的响应体，统一处理 JSONP、HTML、空内容等情况，
+        /// 避免 JsonDocument.Parse 抛出 "Expected the input to start with a valid {/digit/..." 之类的错误。
+        /// </summary>
+        private static string NormalizeJsonResponse(string content, string url)
+        {
+            if (string.IsNullOrEmpty(content))
+                throw new InvalidOperationException($"接口返回空响应：{url}");
+
+            // 去掉 BOM 和首尾空白
+            content = content.TrimStart('\uFEFF', ' ', '\r', '\n', '\t').TrimEnd();
+
+            // 1) 处理 JSONP：常见的包装形式 cb({...}); / sinaSSOController({...}); / callback({...});
+            //    找到第一个 '(' 和最后一个 ')'，取出中间 JSON
+            var openParen = content.IndexOf('(');
+            var closeParen = content.LastIndexOf(')');
+            if (openParen > 0 && closeParen > openParen &&
+                (content.StartsWith("sinaSSOController", StringComparison.Ordinal) ||
+                 content.StartsWith("callback", StringComparison.Ordinal) ||
+                 content.StartsWith("cb", StringComparison.Ordinal) ||
+                 char.IsLetter(content[0])))
+            {
+                var inner = content.Substring(openParen + 1, closeParen - openParen - 1).Trim();
+                // 取出 inner 后再判断是否合法 JSON
+                if (inner.Length > 0 && (inner[0] == '{' || inner[0] == '[' || char.IsDigit(inner[0])))
+                    content = inner;
+            }
+
+            // 2) 处理 JSONP 变体：去掉 ; 结尾（如 sinaSSOController({...});）
+            content = content.TrimEnd(';').Trim();
+
+            // 3) 处理 HTML 错误页（接口被网关拦截、返回 404/502 页面等）
+            if (content.Length > 0 && content[0] == '<')
+            {
+                var lower = content.Length > 200 ? content.Substring(0, 200) : content;
+                throw new InvalidOperationException(
+                    $"接口返回了 HTML 而非 JSON（可能被限流或登录失效）：{url} | body={lower}");
+            }
+
+            // 4) 校验是否以合法 JSON 起始字符开头：{ [ " digit - true/false/null
+            if (content.Length == 0 ||
+                (content[0] != '{' && content[0] != '[' && content[0] != '"' &&
+                 !char.IsDigit(content[0]) && content[0] != '-' &&
+                 !content.StartsWith("true", StringComparison.Ordinal) &&
+                 !content.StartsWith("false", StringComparison.Ordinal) &&
+                 !content.StartsWith("null", StringComparison.Ordinal)))
+            {
+                var preview = content.Length > 200 ? content.Substring(0, 200) : content;
+                throw new InvalidOperationException(
+                    $"接口返回内容不是合法 JSON：{url} | body={preview}");
+            }
+
+            return content;
         }
 
         private async Task<byte[]> GetByteArrayAsync(string url, CancellationToken ct)
