@@ -106,6 +106,11 @@ namespace Vista.Presentation.Auth
                     var ticket = status.Substring("confirmed:".Length);
                     await CompleteLoginAsync(ticket);
                 }
+                else if (status == "expired")
+                {
+                    LoginStatus.Text = "二维码已过期，正在刷新...";
+                    await RefreshQrAsync();
+                }
                 else if (status.StartsWith("error:"))
                 {
                     LoginStatus.Text = "状态检查异常：" + status;
