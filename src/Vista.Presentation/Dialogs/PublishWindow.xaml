@@ -1,7 +1,7 @@
 <Window x:Class="Vista.Presentation.Dialogs.PublishWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="发布微博" Height="420" Width="560"
+        Title="发布微博" Height="480" Width="560"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource SurfaceBrush}"
         Foreground="{StaticResource TextBrush}"
@@ -13,6 +13,7 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Text="发布新微博" FontWeight="Bold" FontSize="18"
@@ -20,21 +21,30 @@
 
         <TextBox x:Name="ContentBox" Grid.Row="1" Margin="0,12,0,8"
                  AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                 MaxLength="2000"
                  AutomationProperties.Name="微博内容输入框"
-                 AutomationProperties.HelpText="输入要发布的微博文字内容，支持多行。"
+                 AutomationProperties.HelpText="输入要发布的微博文字内容，支持多行，最多2000字。"
                  TextChanged="OnContentChanged"/>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
-            <Button Content="添加图片" Padding="10,2" Margin="0,0,8,0"
-                    AutomationProperties.Name="从本地选择图片添加到微博"
+            <Button x:Name="AddImageBtn" Content="添加图片" Padding="10,2" Margin="0,0,8,0"
+                    AutomationProperties.Name="从本地选择图片添加到微博，最多九张"
                     Click="OnAddImage"/>
+            <Button x:Name="RemoveImageBtn" Content="清空图片" Padding="10,2" Margin="0,0,8,0"
+                    AutomationProperties.Name="清除已添加的所有图片"
+                    Click="OnRemoveImages" IsEnabled="False"/>
             <TextBlock x:Name="ImageCountText" VerticalAlignment="Center"
                        Foreground="{StaticResource TextMutedBrush}"
                        AutomationProperties.Name="已添加图片数量"/>
         </StackPanel>
 
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="取消" Padding="16,4" Margin="0,0,8,0"
+        <TextBlock x:Name="StatusText" Grid.Row="3" Margin="0,4,0,8"
+                   Foreground="{StaticResource BrandBrush}"
+                   AutomationProperties.Name="发布状态提示"
+                   AutomationProperties.LiveSetting="Polite"/>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button x:Name="CancelBtn" Content="取消" Padding="16,4" Margin="0,0,8,0"
                     AutomationProperties.Name="取消发布"
                     Click="OnCancel"/>
             <Button x:Name="PublishBtn" Content="发布" Padding="16,4"

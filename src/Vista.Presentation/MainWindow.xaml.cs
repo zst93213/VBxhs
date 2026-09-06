@@ -131,9 +131,34 @@ namespace Vista.Presentation
         private async void OnSendComment(object sender, RoutedEventArgs e)
         {
             var content = CommentInput.Text;
-            if (string.IsNullOrWhiteSpace(content)) return;
-            var ok = await _vm.CommentCurrentAsync(content);
-            if (ok) CommentInput.Clear();
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                StatusText.Text = "请输入评论内容";
+                CommentInput.Focus();
+                return;
+            }
+            if (_vm.CurrentCard == null)
+            {
+                StatusText.Text = "请先在信息流中选中一条微博";
+                return;
+            }
+            // 防重复提交
+            SendCommentBtn.IsEnabled = false;
+            SendCommentBtn.Content = "发送中...";
+            try
+            {
+                var ok = await _vm.CommentCurrentAsync(content);
+                if (ok)
+                {
+                    CommentInput.Clear();
+                    CommentInput.Focus();
+                }
+            }
+            finally
+            {
+                SendCommentBtn.IsEnabled = true;
+                SendCommentBtn.Content = "发送";
+            }
         }
 
         private void OnCommentInputKeyDown(object sender, KeyEventArgs e)
@@ -153,14 +178,10 @@ namespace Vista.Presentation
 
         // ========== 发布 / 超话 / 设置 ==========
 
-        private async void OnPublish(object sender, RoutedEventArgs e)
+        private void OnPublish(object sender, RoutedEventArgs e)
         {
-            var dlg = new PublishWindow { Owner = this };
-            if (dlg.ShowDialog() == true)
-            {
-                var ok = await _vm.PublishPostAsync(dlg.PostText, dlg.ImagePaths);
-                if (ok) dlg.Close();
-            }
+            var dlg = new PublishWindow(_vm) { Owner = this };
+            dlg.ShowDialog();
         }
 
         private void OnSuperTopic(object sender, RoutedEventArgs e)
@@ -198,6 +219,13 @@ namespace Vista.Presentation
                 _vm.CurrentCard = card;
                 _vm.LoadCurrentCommentsAsync();
             }
+        }
+
+        /// <summary>键盘选中卡片时也更新 CurrentCard，确保评论/点赞等操作有目标。</summary>
+        private void OnCardSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (CardList.SelectedItem is PostCard card)
+                _vm.CurrentCard = card;
         }
 
         private async void OnHotSearchDoubleClick(object sender, MouseButtonEventArgs e)

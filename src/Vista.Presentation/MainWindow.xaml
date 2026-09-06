@@ -170,7 +170,8 @@
                     <ListView x:Name="CardList" Background="Transparent" BorderThickness="0"
                               ItemTemplate="{StaticResource PostCardTemplate}"
                               AutomationProperties.Name="信息流内容列表"
-                              AutomationProperties.HelpText="按 J 键下一张，K 键上一张，Enter 打开详情，L 点赞。"
+                              AutomationProperties.HelpText="按 J 键下一张，K 键上一张，Enter 或双击打开详情与评论，L 点赞。"
+                              SelectionChanged="OnCardSelectionChanged"
                               MouseDoubleClick="OnCardDoubleClick"/>
                     <ListView x:Name="HotSearchList" Background="Transparent" BorderThickness="0"
                               ItemTemplate="{StaticResource HotSearchTemplate}"

@@ -747,10 +747,47 @@ namespace Vista.Adapters.Weibo
             catch { return false; }
         }
 
+        /// <summary>
+        /// 解析 /api/comments/create 返回的评论对象。
+        /// 成功时 data 中包含完整评论字段（id, text, created_at, user 等）。
+        /// 解析失败时用用户输入构造一个本地评论返回（保证 UI 即时更新）。
+        /// </summary>
         private static Comment ParseCreatedComment(string json, string postId, string content)
         {
-            if (string.IsNullOrEmpty(json) || !ParseOk(json)) return null;
-            // 简化：直接根据用户输入构造一个 Comment 实体返回（真实接口返回结构复杂）
+            if (string.IsNullOrEmpty(json) || !ParseOk(json))
+                return null;
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("data", out var data))
+                {
+                    var c = new Comment
+                    {
+                        Id = TryGetText(data, "id") ?? TryGetText(data, "cid"),
+                        PostId = postId,
+                        Content = TryGetText(data, "text") ?? content,
+                        LikeCount = data.TryGetProperty("like_count", out var lc) ? lc.GetInt32() : 0,
+                        ParentCommentId = TryGetText(data, "reply_to_id")
+                    };
+                    if (data.TryGetProperty("user", out var u))
+                    {
+                        c.AuthorName = TryGetText(u, "screen_name") ?? TryGetText(u, "name") ?? "我";
+                        c.AuthorId = TryGetText(u, "id");
+                    }
+                    if (data.TryGetProperty("created_at", out var ca) && ca.ValueKind == JsonValueKind.String)
+                    {
+                        if (DateTimeOffset.TryParse(ca.GetString(), out var dt))
+                            c.CreatedAt = dt;
+                    }
+                    if (string.IsNullOrEmpty(c.CreatedAt.ToString("o")) || c.CreatedAt == default)
+                        c.CreatedAt = DateTimeOffset.UtcNow;
+                    if (string.IsNullOrEmpty(c.Id))
+                        c.Id = "local-" + Guid.NewGuid().ToString("N");
+                    return c;
+                }
+            }
+            catch { }
+            // 降级：用用户输入构造本地评论
             return new Comment
             {
                 Id = "local-" + Guid.NewGuid().ToString("N"),
