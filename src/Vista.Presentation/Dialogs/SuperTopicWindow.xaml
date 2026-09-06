@@ -1,0 +1,52 @@
+<Window x:Class="Vista.Presentation.Dialogs.SuperTopicWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="超话" Height="520" Width="640"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource SurfaceBrush}"
+        Foreground="{StaticResource TextBrush}"
+        AutomationProperties.Name="超话浏览与签到窗口"
+        AutomationProperties.HelpText="输入超话 ID 浏览帖子或签到。">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="超话浏览与签到" FontWeight="Bold" FontSize="18"
+                   AutomationProperties.Name="超话标题"/>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,12,0,8">
+            <TextBlock Text="超话 ID：" VerticalAlignment="Center"/>
+            <TextBox x:Name="TopicIdBox" Width="240" Margin="8,0"
+                     AutomationProperties.Name="超话 ID 输入框"
+                     AutomationProperties.HelpText="输入超话的数字 ID。"/>
+            <Button Content="浏览" Padding="12,2" Margin="0,0,6,0"
+                    AutomationProperties.Name="加载该超话的帖子列表"
+                    Click="OnBrowse"/>
+            <Button Content="签到" Padding="12,2"
+                    AutomationProperties.Name="对该超话进行签到"
+                    Click="OnSignIn"/>
+        </StackPanel>
+
+        <ListBox x:Name="PostList" Grid.Row="2" Background="Transparent" BorderThickness="0"
+                 AutomationProperties.Name="超话帖子列表"
+                 AutomationProperties.HelpText="显示超话内的帖子。">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Margin="0,4">
+                        <TextBlock FontWeight="Bold" Text="{Binding AuthorName}"/>
+                        <TextBlock Text="{Binding TextSummary}" TextWrapping="Wrap" MaxHeight="60"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <TextBlock Grid.Row="3" x:Name="ResultText" Foreground="{StaticResource BrandBrush}"
+                   Margin="0,8,0,0"
+                   AutomationProperties.Name="操作结果提示"
+                   AutomationProperties.LiveSetting="Polite"/>
+    </Grid>
+</Window>

@@ -2,10 +2,8 @@
 <!-- 解决方案级统一属性。所有项目共享。 -->
 <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <!-- 目标框架：.NET Framework 4.8（Windows 10 1709+ 自带运行时，零部署依赖）
-         不用 4.8.1：4.8.1 仅新增 WinForms 无障碍 API（AccessibleRole 等），WPF 项目用不到；
-         且 4.8.1 装机率远低于 4.8，用 4.8 可避免 supportedRuntime sku 检查导致启动失败 -->
-    <TargetFramework>net48</TargetFramework>
+    <!-- 目标框架：.NET Framework 4.8.1（用户明确要求） -->
+    <TargetFramework>net481</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Platforms>AnyCPU</Platforms>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -18,7 +16,7 @@
     <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)artifacts\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
     <!-- 产品信息 -->
     <Company>Vista Accessibility</Company>
-    <Product>Vista — 无障碍版微博 &amp; 小红书聚合客户端</Product>
+    <Product>Vista — 无障碍版微博客户端</Product>
     <Copyright>Copyright © 2026 Vista Accessibility</Copyright>
     <Version>0.1.0-m0</Version>
   </PropertyGroup>

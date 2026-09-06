@@ -9,7 +9,8 @@ namespace Vista.Core
         /// <summary>新浪微博</summary>
         Weibo = 1,
 
-        /// <summary>小红书 / RedNote</summary>
+        /// <summary>小红书 / RedNote（已停用，保留枚举值以兼容历史账号数据）</summary>
+        [System.Obsolete("小红书功能已移除")]
         Xiaohongshu = 2,
 
         // 预留接入点（M5 路线图提及）：抖音、B 站

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Vista.Core.Adapters;
@@ -109,6 +110,78 @@ namespace Vista.Infrastructure.Cache
             var fresh = await _inner.CheckAccountHealthAsync(account, ct);
             if (fresh != null)
                 await _cache.SetAsync(cacheKey, fresh, TimeSpan.FromMinutes(5));
+            return fresh;
+        }
+
+        public async Task<IReadOnlyList<HotSearchItem>> GetHotSearchAsync(AccountId account, CancellationToken ct)
+        {
+            var cacheKey = Key("hotsearch", account);
+            var cached = await _cache.GetAsync<IReadOnlyList<HotSearchItem>>(cacheKey);
+            if (cached != null) return cached;
+
+            var fresh = await _inner.GetHotSearchAsync(account, ct);
+            if (fresh != null)
+                await _cache.SetAsync(cacheKey, fresh, TimeSpan.FromMinutes(10));
+            return fresh;
+        }
+
+        public async Task<PagedResult<PostCard>> GetHotWeiboAsync(AccountId account, string cursor, CancellationToken ct)
+        {
+            var cacheKey = Key("hotweibo", account, cursor ?? "root");
+            var cached = await _cache.GetAsync<PagedResult<PostCard>>(cacheKey);
+            if (cached != null) return cached;
+
+            var fresh = await _inner.GetHotWeiboAsync(account, cursor, ct);
+            if (fresh != null)
+                await _cache.SetAsync(cacheKey, fresh, _defaultTtl);
+            return fresh;
+        }
+
+        public async Task<PagedResult<PostCard>> GetUserPostsAsync(AccountId account, string userId, string cursor, CancellationToken ct)
+        {
+            var cacheKey = Key("userposts", account, userId, cursor ?? "root");
+            var cached = await _cache.GetAsync<PagedResult<PostCard>>(cacheKey);
+            if (cached != null) return cached;
+
+            var fresh = await _inner.GetUserPostsAsync(account, userId, cursor, ct);
+            if (fresh != null)
+                await _cache.SetAsync(cacheKey, fresh, _defaultTtl);
+            return fresh;
+        }
+
+        public async Task<PagedResult<UserProfile>> GetUserFollowersAsync(AccountId account, string userId, string cursor, CancellationToken ct)
+        {
+            var cacheKey = Key("followers", account, userId, cursor ?? "root");
+            var cached = await _cache.GetAsync<PagedResult<UserProfile>>(cacheKey);
+            if (cached != null) return cached;
+
+            var fresh = await _inner.GetUserFollowersAsync(account, userId, cursor, ct);
+            if (fresh != null)
+                await _cache.SetAsync(cacheKey, fresh, _defaultTtl);
+            return fresh;
+        }
+
+        public async Task<PagedResult<UserProfile>> GetUserFollowingAsync(AccountId account, string userId, string cursor, CancellationToken ct)
+        {
+            var cacheKey = Key("following", account, userId, cursor ?? "root");
+            var cached = await _cache.GetAsync<PagedResult<UserProfile>>(cacheKey);
+            if (cached != null) return cached;
+
+            var fresh = await _inner.GetUserFollowingAsync(account, userId, cursor, ct);
+            if (fresh != null)
+                await _cache.SetAsync(cacheKey, fresh, _defaultTtl);
+            return fresh;
+        }
+
+        public async Task<PagedResult<PostCard>> GetSuperTopicFeedAsync(AccountId account, string superTopicId, string cursor, CancellationToken ct)
+        {
+            var cacheKey = Key("supertopic", account, superTopicId, cursor ?? "root");
+            var cached = await _cache.GetAsync<PagedResult<PostCard>>(cacheKey);
+            if (cached != null) return cached;
+
+            var fresh = await _inner.GetSuperTopicFeedAsync(account, superTopicId, cursor, ct);
+            if (fresh != null)
+                await _cache.SetAsync(cacheKey, fresh, _defaultTtl);
             return fresh;
         }
     }

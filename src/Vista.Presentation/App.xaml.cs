@@ -7,12 +7,10 @@ using Serilog;
 using Vista.Accounts;
 using Vista.Accounts.Vault;
 using Vista.Adapters.Weibo;
-using Vista.Adapters.Xiaohongshu;
 using Vista.Core;
 using Vista.Core.Adapters;
 using Vista.Core.Models;
 using Vista.Features.Weibo.UseCases;
-using Vista.Features.Xiaohongshu.UseCases;
 using Vista.Infrastructure.Cache;
 using Vista.Infrastructure.Http;
 using Vista.Infrastructure.Logging;
@@ -21,14 +19,14 @@ namespace Vista.Presentation
 {
     /// <summary>
     /// 应用入口 / Composition Root。所有依赖在此装配。
-    /// 完整装配清单（M0 全量）：
+    /// 完整装配清单：
     ///   1) ZdsCompatibility.Apply() — 争渡读屏适配（最先做，影响 NarrationService 开关）
     ///   2) SerilogBootstrap — 含敏感字段掩码的日志
     ///   3) SecureCredentialVault + AccountRepository — DPAPI 加密的账号仓库
     ///   4) ICacheStore = SQLiteCacheStore（持久化）；CachedCrawlerAdapter 包裹 Adapter 提供读缓存
-    ///   5) WeiboAdapter + XiaohongshuAdapter — 完整 HTTP 实现
-    ///   6) 各用例（双平台完整：浏览/搜索/详情/评论/点赞/收藏/关注/发布/转发分享/健康度）
-    ///   7) MainViewModel 注入双平台用例 + 平台切换路由
+    ///   5) WeiboAdapter — 基于 m.weibo.cn 的完整 HTTP 实现
+    ///   6) 各用例（浏览/搜索/详情/评论/点赞/收藏/关注/发布/转发/健康度）
+    ///   7) MainViewModel 注入微博用例
     ///   8) MainWindow 显示
     /// </summary>
     /// <remarks>
@@ -43,7 +41,6 @@ namespace Vista.Presentation
         public AccountRepository Accounts { get; private set; }
         public AccountContext AccountContext { get; private set; }
         public IPlatformAdapter WeiboAdapter { get; private set; }
-        public IPlatformAdapter XiaohongshuAdapter { get; private set; }
         public ICacheStore Cache { get; private set; }
 
         protected override void OnStartup(StartupEventArgs e)
@@ -118,29 +115,25 @@ namespace Vista.Presentation
             // 第 5 步：每账号独立的 ResilientHttpClient（防关联，§五）
             var clientFactory = BuildClientFactory();
 
-            // 第 6 步：真实 Adapter：微博直接用 Cookie；小红书注入签名器（默认空签名器，写入操作优雅失败）
+            // 第 6 步：微博 Adapter（基于 m.weibo.cn，Cookie 认证）
             WeiboAdapter = new WeiboAdapter(Accounts, clientFactory);
-            XiaohongshuAdapter = new XiaohongshuAdapter(Accounts, clientFactory, new NullXhsSignatureProvider());
-            WriteStartupLog("  WeiboAdapter / XiaohongshuAdapter 完成");
+            WriteStartupLog("  WeiboAdapter 完成");
 
             // 注：CachedCrawlerAdapter 用于装饰 ICrawlerAdapter，提供读取接口的缓存。
             // 主流程暂时直接用具体 Adapter（写入接口共享），缓存通过 ICacheStore 在 ViewModel 显式调用。
-            // 后续可把 Adapter 装饰成 CachedCrawlerAdapter 获得自动缓存。
 
-            // 第 7 步：ViewModel 注入双平台用例 + 平台切换路由
+            // 第 7 步：ViewModel 注入微博用例
             MainWindowVm = new MainViewModel(
                 new GetHomeTimelineUseCase(WeiboAdapter, AccountContext),
-                new SearchNotesUseCase(XiaohongshuAdapter, AccountContext),
+                new SearchUseCase(WeiboAdapter, AccountContext),
                 new RepostUseCase(WeiboAdapter, AccountContext),
-                new ShareNoteUseCase(XiaohongshuAdapter, AccountContext),
-                new GetCommentsUseCase(XiaohongshuAdapter, AccountContext),
                 AccountContext, Accounts, Cache);
-            MainWindowVm.SetAdapters(WeiboAdapter, XiaohongshuAdapter);
+            MainWindowVm.SetAdapter(WeiboAdapter);
             MainWindowVm.ReloadAccounts();
             WriteStartupLog("  MainViewModel 装配完成");
 
             // 第 8 步：主窗口
-            var main = new MainWindow { DataContext = MainWindowVm };
+            var main = new MainWindow(MainWindowVm);
             main.Show();
         }
 
@@ -208,8 +201,11 @@ namespace Vista.Presentation
             return id =>
             {
                 var http = new System.Net.Http.HttpClient();
-                http.DefaultRequestHeaders.UserAgent.ParseAdd("Vista/0.1 (" + id.Platform + ")");
-                return new ResilientHttpClient(http, new RateLimitBucket(capacity: 5, refillPerSec: 1));
+                // 模拟 Chrome 移动端 UA（m.weibo.cn 要求），防平台识别为机器人
+                http.DefaultRequestHeaders.UserAgent.ParseAdd(
+                    "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36");
+                // 总请求频率控制在 1000 次/小时以内 ≈ 0.278 次/秒；capacity=5 允许短突发
+                return new ResilientHttpClient(http, new RateLimitBucket(capacity: 5, refillPerSec: 0.27));
             };
         }
     }

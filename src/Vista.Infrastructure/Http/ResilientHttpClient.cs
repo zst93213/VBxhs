@@ -9,24 +9,29 @@ using Polly.Retry;
 namespace Vista.Infrastructure.Http
 {
     /// <summary>
-    /// 带"重试 + 熔断 + 限速"语义的 HttpClient 包装。
-    /// 设计参考：Polly 官方推荐组合。每个账号拥有独立实例（在 Adapters 层注入），
-    /// 实现设计计划 §五"防关联"——独立 Client、独立 UA、独立设备指纹。
+    /// 带"重试 + 熔断 + 限速 + 随机延迟"语义的 HttpClient 包装。
+    /// 安全策略（用户要求 §安全策略）：
+    ///   1) 所有请求间加入随机延迟 0.5~1.5 秒（模拟真人操作间隔，防机器人识别）。
+    ///   2) 遇到限流错误（HTTP 429 / 5xx / 网络异常）采用指数退避重试：1s → 2s → 4s。
+    ///   3) 4xx（除 429）直接返回，不重试——多为鉴权/参数错误，重试无意义且易触发风控。
+    /// 每个账号拥有独立实例，实现"防关联"——独立 Client、独立 UA、独立设备指纹。
     /// </summary>
     public sealed class ResilientHttpClient : IDisposable
     {
         private readonly HttpClient _client;
         private readonly AsyncRetryPolicy<HttpResponseMessage> _retry;
+        private static readonly Random _jitter = new Random();
 
         public ResilientHttpClient(HttpClient client, RateLimitBucket rateLimit)
         {
             _client = client;
             RateLimit = rateLimit ?? throw new ArgumentNullException(nameof(rateLimit));
-            // 指数退避，最多 3 次；5xx 与超时才重试，4xx 直接抛（多为鉴权/参数错误）
+            // 指数退避：1s, 2s, 4s（最多 3 次）
+            // 重试条件：HttpRequestException、5xx、429 Too Many Requests
             _retry = Policy<HttpResponseMessage>
                 .Handle<HttpRequestException>()
-                .OrResult(r => (int)r.StatusCode >= 500)
-                .WaitAndRetryAsync(3, i => TimeSpan.FromMilliseconds(200 * Math.Pow(2, i)),
+                .OrResult(r => (int)r.StatusCode >= 500 || (int)r.StatusCode == 429)
+                .WaitAndRetryAsync(3, i => TimeSpan.FromSeconds(Math.Pow(2, i - 1)),
                     (outcome, delay, attempt, ctx) =>
                     {
                         // 真实日志由 Serilog 输出，此处保持静默以避免循环依赖
@@ -39,8 +44,9 @@ namespace Vista.Infrastructure.Http
         public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage req, CancellationToken ct)
         {
             await RateLimit.AcquireAsync(ct).ConfigureAwait(false);
-            // Polly 7.x 的 AsyncRetryPolicy<TResult>.ExecuteAsync 要求传入取消令牌感知委托，
-            // 才能在外部取消时立刻中止内部 HttpClient.SendAsync。
+            // 随机延迟 0.5~1.5 秒，模拟真人操作节奏，降低被风控识别为机器人的概率
+            var delayMs = _jitter.Next(500, 1501);
+            await Task.Delay(delayMs, ct).ConfigureAwait(false);
             return await _retry.ExecuteAsync(token => _client.SendAsync(req, token), ct).ConfigureAwait(false);
         }
 

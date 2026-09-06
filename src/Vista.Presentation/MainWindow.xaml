@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:a11y="clr-namespace:Vista.Presentation.Accessibility"
         xmlns:core="clr-namespace:Vista.Core.Adapters.Models;assembly=Vista.Core"
-        Title="Vista — 无障碍版微博 &amp; 小红书聚合客户端"
+        Title="Vista — 无障碍版微博客户端"
         Height="720" Width="1280"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource SurfaceBrush}"
@@ -11,18 +11,15 @@
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType"
-        AutomationProperties.Name="Vista 无障碍版微博与小红书聚合客户端主窗口"
-        AutomationProperties.HelpText="支持多账号浏览、转发分享、评论查看、离线缓存，全键盘和读屏软件均可操作。">
+        AutomationProperties.Name="Vista 无障碍版微博客户端主窗口"
+        AutomationProperties.HelpText="支持多账号浏览、转发、评论、发布、超话签到，全键盘和读屏软件均可操作。">
     <Window.Resources>
-        <!-- 信息流卡片模板：把每条 PostCard 包成 CardItem，CardAutomationPeer 据此暴露结构化朗读字段。
-             DataType=PostCard 表示 ItemsControl 渲染 PostCard 类型项时套用本模板；
-             模板根是 a11y:CardItem，其 Post 属性绑定到当前 PostCard。 -->
         <DataTemplate x:Key="PostCardTemplate" DataType="{x:Type core:PostCard}">
             <a11y:CardItem Post="{Binding}">
                 <a11y:CardItem.Content>
                     <StackPanel Margin="0,6">
                         <TextBlock FontWeight="Bold" Text="{Binding AuthorName}"/>
-                        <TextBlock Text="{Binding TextSummary}" TextWrapping="Wrap" MaxHeight="60"/>
+                        <TextBlock Text="{Binding TextSummary}" TextWrapping="Wrap" MaxHeight="80"/>
                         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                             <TextBlock Foreground="{StaticResource TextMutedBrush}" FontSize="13"
                                        Text="{Binding LikeCount, StringFormat=👍 {0}}"/>
@@ -36,7 +33,6 @@
             </a11y:CardItem>
         </DataTemplate>
 
-        <!-- 评论模板：把每条 Comment 包成 CommentItem，CommentAutomationPeer 据此按楼层朗读 -->
         <DataTemplate x:Key="CommentTemplate" DataType="{x:Type core:Comment}">
             <a11y:CommentItem Comment="{Binding}">
                 <a11y:CommentItem.Content>
@@ -49,130 +45,192 @@
                 </a11y:CommentItem.Content>
             </a11y:CommentItem>
         </DataTemplate>
+
+        <DataTemplate x:Key="HotSearchTemplate" DataType="{x:Type core:HotSearchItem}">
+            <StackPanel Orientation="Horizontal" Margin="0,4">
+                <TextBlock Width="28" FontWeight="Bold" Foreground="{StaticResource BrandBrush}"
+                           Text="{Binding Rank}"/>
+                <TextBlock Text="{Binding Keyword}" TextWrapping="Wrap"/>
+                <TextBlock Margin="8,0,0,0" Foreground="{StaticResource TextMutedBrush}" FontSize="13"
+                           Text="{Binding Heat}"/>
+            </StackPanel>
+        </DataTemplate>
+
+        <DataTemplate x:Key="UserRelationTemplate" DataType="{x:Type core:UserProfile}">
+            <StackPanel Margin="0,4">
+                <TextBlock FontWeight="Bold" Text="{Binding Name}"/>
+                <TextBlock Foreground="{StaticResource TextMutedBrush}" FontSize="13"
+                           Text="{Binding Bio}" TextWrapping="Wrap"/>
+                <TextBlock Foreground="{StaticResource TextMutedBrush}" FontSize="13">
+                    <Run Text="粉丝 "/><Run Text="{Binding FollowerCount}"/>
+                    <Run Text="，关注 "/><Run Text="{Binding FollowCount}"/>
+                </TextBlock>
+            </StackPanel>
+        </DataTemplate>
     </Window.Resources>
+
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>  <!-- 顶部：账号 + 操作工具栏 -->
-            <RowDefinition Height="*"/>      <!-- 三栏主体 -->
-            <RowDefinition Height="Auto"/>   <!-- 底部状态栏 -->
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- 顶部栏：账号 Chip 区 + 操作按钮组 + 搜索 -->
+        <!-- 顶部工具栏 -->
         <DockPanel Grid.Row="0" LastChildFill="True" Background="{StaticResource SurfaceMutedBrush}">
-            <!-- 左：账号管理 -->
             <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" Margin="12,8">
                 <AccessText>当前账号：</AccessText>
-                <ComboBox x:Name="AccountChip" Width="260" Margin="8,0,16,0"
+                <ComboBox x:Name="AccountChip" Width="220" Margin="8,0,12,0"
                           AutomationProperties.Name="当前账号选择"
-                          AutomationProperties.HelpText="展开后按上下方向键选择已登录账号，回车切换。Ctrl 加数字键可快速切换。"
+                          AutomationProperties.HelpText="展开后按上下方向键选择已登录账号，回车切换。"
                           SelectionChanged="OnAccountChanged"/>
                 <Button Content="添加账号" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="添加新账号（微博或小红书），打开扫码登录窗口"
+                        AutomationProperties.Name="添加新账号，打开微博扫码登录窗口"
                         Click="OnAddAccount"/>
                 <Button Content="管理账号" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="打开账号管理器：查看、分组、删除已登录账号"
+                        AutomationProperties.Name="打开账号管理器：查看、删除已登录账号"
                         Click="OnManageAccounts"/>
             </StackPanel>
 
-            <!-- 右：操作按钮组 -->
             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Margin="12,8">
                 <Button Content="刷新" Padding="10,2" Margin="0,0,6,0"
                         AutomationProperties.Name="刷新信息流，按 F5 快捷键也可触发"
                         Click="OnRefresh"/>
-                <Button Content="搜索" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="用搜索框的关键词在微博或小红书上搜索内容，回车也可触发"
-                        Click="OnSearch"/>
+                <Button Content="热门" Padding="10,2" Margin="0,0,6,0"
+                        AutomationProperties.Name="加载热门微博推荐流"
+                        Click="OnHotWeibo"/>
+                <Button Content="热搜" Padding="10,2" Margin="0,0,6,0"
+                        AutomationProperties.Name="查看微博热搜榜"
+                        Click="OnHotSearch"/>
+                <Button Content="发布" Padding="10,2" Margin="0,0,6,0"
+                        AutomationProperties.Name="打开发布微博窗口"
+                        Click="OnPublish"/>
                 <Button Content="点赞" Padding="10,2" Margin="0,0,6,0"
                         AutomationProperties.Name="一键点赞当前卡片，快捷键 Alt L"
                         Click="OnLike"/>
                 <Button Content="收藏" Padding="10,2" Margin="0,0,6,0"
                         AutomationProperties.Name="一键收藏当前卡片，快捷键 Alt B"
                         Click="OnFavorite"/>
-                <Button Content="转发或分享" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="一键转发微博或分享当前笔记到剪贴板，快捷键 Alt F"
+                <Button Content="转发" Padding="10,2" Margin="0,0,6,0"
+                        AutomationProperties.Name="一键转发当前微博，快捷键 Alt F"
                         Click="OnRepost"/>
+                <Button Content="关注作者" Padding="10,2" Margin="0,0,6,0"
+                        AutomationProperties.Name="关注当前卡片的作者"
+                        Click="OnFollowAuthor"/>
+                <Button Content="用户主页" Padding="10,2" Margin="0,0,6,0"
+                        AutomationProperties.Name="查看当前卡片作者的主页"
+                        Click="OnViewAuthor"/>
+                <Button Content="超话" Padding="10,2" Margin="0,0,6,0"
+                        AutomationProperties.Name="打开超话浏览与签到窗口"
+                        Click="OnSuperTopic"/>
                 <Button Content="加载评论" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="加载当前卡片的评论列表，加载完成后按 Tab 到评论区即可按行朗读"
+                        AutomationProperties.Name="加载当前卡片的评论列表"
                         Click="OnLoadComments"/>
-                <Button Content="朗读评论" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="手动朗读当前所有评论，快捷键 Alt Shift C"
-                        Click="OnNarrateComments"/>
-                <Button Content="朗读卡片" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="手动朗读当前选中的卡片内容，快捷键 Alt Shift R"
-                        Click="OnNarrateCurrent"/>
-                <Button Content="保存离线缓存" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="将当前信息流保存到本地缓存，断网时也能查看"
+                <Button Content="保存离线" Padding="10,2" Margin="0,0,6,0"
+                        AutomationProperties.Name="将当前信息流保存到本地缓存"
                         Click="OnSaveOffline"/>
                 <Button Content="账号状态" Padding="10,2" Margin="0,0,6,0"
-                        AutomationProperties.Name="检查当前账号是否被限流，快捷键 Alt H"
+                        AutomationProperties.Name="检查当前账号是否被限流"
                         Click="OnCheckHealth"/>
                 <Button Content="设置" Padding="10,2" Margin="0,0,0,0"
-                        AutomationProperties.Name="打开设置：主题、快捷键、朗读方式、字体大小"/>
+                        AutomationProperties.Name="打开设置：主题、字体、朗读方式"
+                        Click="OnSettings"/>
             </StackPanel>
 
-            <!-- 中：搜索框 -->
             <TextBox x:Name="SearchBox" Margin="18,6" VerticalContentAlignment="Center"
                      KeyDown="OnSearchBoxKeyDown"
-                     AutomationProperties.Name="搜索框，输入关键词后回车在微博或小红书上搜索内容"
-                     AutomationProperties.HelpText="回车执行搜索，搜索范围随当前账号平台切换，微博搜内容，小红书搜笔记。"/>
+                     AutomationProperties.Name="搜索框，输入关键词后回车在微博上搜索内容"
+                     AutomationProperties.HelpText="回车执行搜索，在微博上搜索相关内容。"/>
         </DockPanel>
 
         <!-- 三栏主体 -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="240"/>
+                <ColumnDefinition Width="200"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="400"/>
             </Grid.ColumnDefinitions>
 
-            <!-- 左栏：导航。Alt+1..5 切换。Name 用完整中文+快捷键，争渡 Tab 直接读 -->
+            <!-- 左栏：导航 -->
             <ListBox x:Name="NavList" Grid.Column="0" Background="{StaticResource SurfaceMutedBrush}"
-                     AutomationProperties.Name="主导航菜单，使用 Alt 加数字键 1 到 5 可直接切换功能区"
-                     AutomationProperties.HelpText="当前选中项会在右侧主区域显示对应内容"
+                     AutomationProperties.Name="主导航菜单"
+                     AutomationProperties.HelpText="使用上下方向键选择功能区，回车进入"
                      SelectionChanged="OnNavChanged">
-                <ListBoxItem Tag="Home"
-                             AutomationProperties.Name="1，首页功能区，快捷键 Alt 数字 1。显示关注和推荐信息流。"/>
-                <ListBoxItem Tag="Messages"
-                             AutomationProperties.Name="2，消息功能区，快捷键 Alt 数字 2。查看私信、评论通知、被赞被艾特通知。"/>
-                <ListBoxItem Tag="Publish"
-                             AutomationProperties.Name="3，发布功能区，快捷键 Alt 数字 3。发布微博或发布小红书笔记。"/>
-                <ListBoxItem Tag="Me"
-                             AutomationProperties.Name="4，我的功能区，快捷键 Alt 数字 4。查看个人主页、我发布的内容、收藏夹。"/>
-                <ListBoxItem Tag="Settings"
-                             AutomationProperties.Name="5，设置功能区，快捷键 Alt 数字 5。调整主题、快捷键、朗读方式、字体大小。"/>
+                <ListBoxItem Tag="Home" AutomationProperties.Name="首页，显示关注信息流"/>
+                <ListBoxItem Tag="Hot" AutomationProperties.Name="热门微博"/>
+                <ListBoxItem Tag="HotSearch" AutomationProperties.Name="热搜榜"/>
+                <ListBoxItem Tag="Publish" AutomationProperties.Name="发布微博"/>
+                <ListBoxItem Tag="Me" AutomationProperties.Name="我的主页"/>
+                <ListBoxItem Tag="Settings" AutomationProperties.Name="设置"/>
             </ListBox>
 
-            <!-- 中栏：信息流。自定义 Peer + 无虚拟化 -->
+            <!-- 中栏：内容区（根据视图切换） -->
             <Border Grid.Column="1" Padding="12">
-                <ListView x:Name="CardList"
-                          Background="Transparent"
-                          BorderThickness="0"
-                          ItemTemplate="{StaticResource PostCardTemplate}"
-                          AutomationProperties.Name="信息流内容列表"
-                          AutomationProperties.HelpText="按 J 键跳到下一张卡片，K 键回到上一张，Enter 键打开详情，L 键点赞当前卡片，C 键评论当前卡片。">
-                </ListView>
+                <Grid>
+                    <ListView x:Name="CardList" Background="Transparent" BorderThickness="0"
+                              ItemTemplate="{StaticResource PostCardTemplate}"
+                              AutomationProperties.Name="信息流内容列表"
+                              AutomationProperties.HelpText="按 J 键下一张，K 键上一张，Enter 打开详情，L 点赞。"
+                              MouseDoubleClick="OnCardDoubleClick"/>
+                    <ListView x:Name="HotSearchList" Background="Transparent" BorderThickness="0"
+                              ItemTemplate="{StaticResource HotSearchTemplate}"
+                              AutomationProperties.Name="热搜榜列表"
+                              AutomationProperties.HelpText="按上下方向键选择热搜，回车搜索该关键词。"
+                              Visibility="Collapsed"
+                              MouseDoubleClick="OnHotSearchDoubleClick"/>
+                </Grid>
             </Border>
 
-            <!-- 右栏：评论区（结构化，用 CommentAutomationPeer 暴露 SpokenLabel，争渡直接读） -->
+            <!-- 右栏：评论区 + 评论输入 -->
             <Border Grid.Column="2" Background="{StaticResource SurfaceMutedBrush}" Padding="12">
                 <DockPanel LastChildFill="True">
-                    <TextBlock DockPanel.Dock="Top"
-                               Text="评论区"
-                               FontWeight="Bold"
-                               AutomationProperties.Name="右栏评论区标题"
-                               Margin="0,0,0,8"/>
-                    <ListView x:Name="CommentList"
-                              Background="Transparent"
-                              BorderThickness="0"
+                    <!-- 用户主页信息（查看用户时显示） -->
+                    <StackPanel x:Name="UserProfilePanel" DockPanel.Dock="Top" Margin="0,0,0,8"
+                                Visibility="Collapsed">
+                        <TextBlock x:Name="UserNameText" FontWeight="Bold" FontSize="18"
+                                   AutomationProperties.Name="用户昵称"/>
+                        <TextBlock x:Name="UserBioText" Foreground="{StaticResource TextMutedBrush}"
+                                   TextWrapping="Wrap" AutomationProperties.Name="用户简介"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <TextBlock Text="{Binding CurrentUserProfile.PostCount, StringFormat=微博 {0}}"/>
+                            <TextBlock Text="{Binding CurrentUserProfile.FollowCount, StringFormat=  关注 {0}}" Margin="12,0,0,0"/>
+                            <TextBlock Text="{Binding CurrentUserProfile.FollowerCount, StringFormat=  粉丝 {0}}" Margin="12,0,0,0"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <Button Content="粉丝" Padding="8,2" Margin="0,0,6,0"
+                                    AutomationProperties.Name="查看该用户的粉丝列表"
+                                    Click="OnLoadFollowers"/>
+                            <Button Content="关注" Padding="8,2" Margin="0,0,6,0"
+                                    AutomationProperties.Name="查看该用户的关注列表"
+                                    Click="OnLoadFollowing"/>
+                            <Button Content="关注TA" Padding="8,2" Margin="0,0,6,0"
+                                    AutomationProperties.Name="关注该用户"
+                                    Click="OnFollowProfileUser"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- 评论输入区 -->
+                    <DockPanel DockPanel.Dock="Bottom" Margin="0,8,0,0" LastChildFill="True">
+                        <Button x:Name="SendCommentBtn" Content="发送" DockPanel.Dock="Right" Padding="12,4"
+                                AutomationProperties.Name="发表评论，发送到当前微博"
+                                Click="OnSendComment"/>
+                        <TextBox x:Name="CommentInput" Margin="0,0,8,0" VerticalContentAlignment="Center"
+                                 KeyDown="OnCommentInputKeyDown"
+                                 AutomationProperties.Name="评论输入框，输入评论内容后回车发送"
+                                 AutomationProperties.HelpText="回车发送评论，评论会发布到当前选中的微博。"/>
+                    </DockPanel>
+
+                    <TextBlock DockPanel.Dock="Top" Text="评论区" FontWeight="Bold"
+                               AutomationProperties.Name="右栏评论区标题" Margin="0,0,0,8"/>
+                    <ListView x:Name="CommentList" Background="Transparent" BorderThickness="0"
                               ItemTemplate="{StaticResource CommentTemplate}"
                               AutomationProperties.Name="当前卡片的评论列表"
-                              AutomationProperties.HelpText="按上下方向键切换评论，争渡读屏会按楼层顺序朗读评论内容、作者、时间和点赞数。按 C 键可以回复当前评论。"/>
+                              AutomationProperties.HelpText="按上下方向键切换评论。"/>
                 </DockPanel>
             </Border>
         </Grid>
 
-        <!-- 底部状态栏。LiveSetting 原始值为 Polite：未发现争渡读屏时，状态栏状态变化由 UIA 朗读；
-             发现争渡读屏时，启动后会自动降级为 Off，避免与争渡重复播报 -->
+        <!-- 底部状态栏 -->
         <StatusBar Grid.Row="2" Background="{StaticResource SurfaceMutedBrush}">
             <StatusBarItem>
                 <TextBlock x:Name="StatusText" Text="就绪"

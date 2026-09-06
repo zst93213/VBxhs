@@ -19,6 +19,9 @@ namespace Vista.Accounts
         public DateTimeOffset LastLoginAt { get; set; }
         public bool IsTokenExpired { get; set; }
 
+        /// <summary>平台展示名（如"微博"）。</summary>
+        public string PlatformName => Platform == PlatformId.Weibo ? "微博" : Platform.ToString();
+
         public AccountId ToAccountId() => new AccountId(Platform, Uid);
     }
 

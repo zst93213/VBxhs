@@ -5,8 +5,8 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <!-- 高对比度主题：默认也走高可读配色，符合"无障碍优先"原则 -->
-                <ResourceDictionary Source="Themes/HighContrast.xaml"/>
+                <!-- 默认浅色主题；设置中可切换为深色或高对比度 -->
+                <ResourceDictionary Source="Themes/Default.xaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

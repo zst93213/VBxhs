@@ -31,11 +31,15 @@ namespace Vista.Adapters.Weibo
 
         private readonly AccountRepository _accounts;
         private readonly Func<AccountId, ResilientHttpClient> _clientFactory;
+        private readonly WriteRateLimiter _writeLimiter;
 
-        public WeiboAdapter(AccountRepository accounts, Func<AccountId, ResilientHttpClient> clientFactory)
+        public WeiboAdapter(AccountRepository accounts, Func<AccountId, ResilientHttpClient> clientFactory,
+            WriteRateLimiter writeLimiter = null)
         {
             _accounts = accounts ?? throw new ArgumentNullException(nameof(accounts));
             _clientFactory = clientFactory ?? throw new ArgumentNullException(nameof(clientFactory));
+            // 写操作限流：10 秒间隔、每小时 60 次上限（安全策略要求）
+            _writeLimiter = writeLimiter ?? new WriteRateLimiter(TimeSpan.FromSeconds(10), 60);
         }
 
         public PlatformId Platform => PlatformId.Weibo;
@@ -206,6 +210,86 @@ namespace Vista.Adapters.Weibo
             return health;
         }
 
+        // ========== 扩展读取：热搜 / 热门 / 用户 / 超话 ==========
+
+        public async Task<IReadOnlyList<HotSearchItem>> GetHotSearchAsync(AccountId account, CancellationToken ct)
+        {
+            var cookie = GetCookieString(account);
+            if (string.IsNullOrEmpty(cookie)) return new List<HotSearchItem>();
+
+            var client = _clientFactory(account);
+            // 热搜榜 containerid：106003type=25&t=3
+            var url = BaseUrl + "/api/container/getIndex?containerid=106003type%3D25%26t%3D3";
+            var json = await client.GetStringAsync(url, ct, WithAuth(cookie)).ConfigureAwait(false);
+            return ParseHotSearch(json);
+        }
+
+        public async Task<PagedResult<PostCard>> GetHotWeiboAsync(AccountId account, string cursor, CancellationToken ct)
+        {
+            var cookie = GetCookieString(account);
+            if (string.IsNullOrEmpty(cookie)) return PagedResult<PostCard>.Empty;
+
+            var client = _clientFactory(account);
+            var since = string.IsNullOrEmpty(cursor) ? "" : "&since_id=" + Uri.EscapeDataString(cursor);
+            var url = BaseUrl + "/api/feed/hot?for_video=0" + since;
+            var json = await client.GetStringAsync(url, ct, WithAuth(cookie)).ConfigureAwait(false);
+            return ParseTimeline(json);
+        }
+
+        public async Task<PagedResult<PostCard>> GetUserPostsAsync(AccountId account, string userId, string cursor, CancellationToken ct)
+        {
+            var cookie = GetCookieString(account);
+            if (string.IsNullOrEmpty(cookie)) return PagedResult<PostCard>.Empty;
+
+            var client = _clientFactory(account);
+            var page = ParsePageFromCursor(cursor);
+            // 用户微博 containerid：230413{uid}_-_WEIBO_SECOND_PROFILE_WEIBO
+            var containerid = "230413" + Uri.EscapeDataString(userId) + "_-_WEIBO_SECOND_PROFILE_WEIBO";
+            var url = BaseUrl + "/api/container/getIndex?containerid=" + containerid + "&page=" + page;
+            var json = await client.GetStringAsync(url, ct, WithAuth(cookie)).ConfigureAwait(false);
+            return ParseSearch(json);
+        }
+
+        public async Task<PagedResult<UserProfile>> GetUserFollowersAsync(AccountId account, string userId, string cursor, CancellationToken ct)
+        {
+            var cookie = GetCookieString(account);
+            if (string.IsNullOrEmpty(cookie)) return PagedResult<UserProfile>.Empty;
+
+            var client = _clientFactory(account);
+            var page = ParsePageFromCursor(cursor);
+            var containerid = "231051_-_fans_-_" + Uri.EscapeDataString(userId);
+            var url = BaseUrl + "/api/container/getIndex?containerid=" + containerid + "&page=" + page;
+            var json = await client.GetStringAsync(url, ct, WithAuth(cookie)).ConfigureAwait(false);
+            return ParseUserRelationList(json);
+        }
+
+        public async Task<PagedResult<UserProfile>> GetUserFollowingAsync(AccountId account, string userId, string cursor, CancellationToken ct)
+        {
+            var cookie = GetCookieString(account);
+            if (string.IsNullOrEmpty(cookie)) return PagedResult<UserProfile>.Empty;
+
+            var client = _clientFactory(account);
+            var page = ParsePageFromCursor(cursor);
+            var containerid = "231051_-_followers_-_" + Uri.EscapeDataString(userId);
+            var url = BaseUrl + "/api/container/getIndex?containerid=" + containerid + "&page=" + page;
+            var json = await client.GetStringAsync(url, ct, WithAuth(cookie)).ConfigureAwait(false);
+            return ParseUserRelationList(json);
+        }
+
+        public async Task<PagedResult<PostCard>> GetSuperTopicFeedAsync(AccountId account, string superTopicId, string cursor, CancellationToken ct)
+        {
+            var cookie = GetCookieString(account);
+            if (string.IsNullOrEmpty(cookie)) return PagedResult<PostCard>.Empty;
+
+            var client = _clientFactory(account);
+            var page = ParsePageFromCursor(cursor);
+            // 超话信息流 containerid：100808{superTopicId}_-_feed
+            var containerid = "100808" + Uri.EscapeDataString(superTopicId) + "_-_feed";
+            var url = BaseUrl + "/api/container/getIndex?containerid=" + containerid + "&page=" + page;
+            var json = await client.GetStringAsync(url, ct, WithAuth(cookie)).ConfigureAwait(false);
+            return ParseSearch(json);
+        }
+
         // ========== 写入（IInteractionAdapter） ==========
 
         public async Task<bool> LikeAsync(AccountId account, string postId, CancellationToken ct)
@@ -218,6 +302,7 @@ namespace Vista.Adapters.Weibo
         {
             var cookie = GetCookieString(account);
             if (string.IsNullOrEmpty(cookie)) return false;
+            await _writeLimiter.AcquireAsync(ct).ConfigureAwait(false);
             var client = _clientFactory(account);
             var url = BaseUrl + "/api/attitudes/" + op;
             var form = new[]
@@ -240,6 +325,7 @@ namespace Vista.Adapters.Weibo
         {
             var cookie = GetCookieString(account);
             if (string.IsNullOrEmpty(cookie)) return false;
+            await _writeLimiter.AcquireAsync(ct).ConfigureAwait(false);
             var client = _clientFactory(account);
             var url = BaseUrl + "/api/starred/" + (create ? "create" : "destroy");
             var form = new[]
@@ -258,6 +344,7 @@ namespace Vista.Adapters.Weibo
         {
             var cookie = GetCookieString(account);
             if (string.IsNullOrEmpty(cookie)) return false;
+            await _writeLimiter.AcquireAsync(ct).ConfigureAwait(false);
             var client = _clientFactory(account);
             var url = BaseUrl + "/api/friendships/" + op;
             var form = new[]
@@ -273,6 +360,7 @@ namespace Vista.Adapters.Weibo
         {
             var cookie = GetCookieString(account);
             if (string.IsNullOrEmpty(cookie)) return null;
+            await _writeLimiter.AcquireAsync(ct).ConfigureAwait(false);
             var client = _clientFactory(account);
             var url = BaseUrl + "/api/comments/create";
             var formList = new List<KeyValuePair<string, string>>
@@ -292,6 +380,7 @@ namespace Vista.Adapters.Weibo
         {
             var cookie = GetCookieString(account);
             if (string.IsNullOrEmpty(cookie)) return null;
+            await _writeLimiter.AcquireAsync(ct).ConfigureAwait(false);
             var client = _clientFactory(account);
 
             // 仅图片：上传 + statuses/upload；纯文本：statuses/update；视频：video/upload（M3 后完善）
@@ -360,6 +449,7 @@ namespace Vista.Adapters.Weibo
         {
             var cookie = GetCookieString(account);
             if (string.IsNullOrEmpty(cookie)) return false;
+            await _writeLimiter.AcquireAsync(ct).ConfigureAwait(false);
             var client = _clientFactory(account);
             var url = BaseUrl + "/api/statuses/repost";
             var form = new[]
@@ -373,7 +463,27 @@ namespace Vista.Adapters.Weibo
             return ParseOk(json);
         }
 
-        // ========== JSON 解析辅助 ==========
+        public async Task<bool> UnfollowAsync(AccountId account, string userId, CancellationToken ct)
+            => await FriendshipAsync(account, userId, "destroy", ct).ConfigureAwait(false);
+
+        public async Task<SuperTopicSignInResult> SignInSuperTopicAsync(AccountId account, string superTopicId, CancellationToken ct)
+        {
+            var cookie = GetCookieString(account);
+            if (string.IsNullOrEmpty(cookie))
+                return new SuperTopicSignInResult { Success = false, Message = "无凭证" };
+
+            await _writeLimiter.AcquireAsync(ct).ConfigureAwait(false);
+            var client = _clientFactory(account);
+            // 超话签到接口：POST /api/page/button
+            // 表单参数 aid 为超话 ID，st 为 XSRF token
+            var form = new[]
+            {
+                new KeyValuePair<string, string>("aid", superTopicId),
+                new KeyValuePair<string, string>("st", ExtractXsrf(cookie) ?? "")
+            };
+            var json = await client.PostFormAsync(BaseUrl + "/api/page/button", form, ct, WithAuth(cookie)).ConfigureAwait(false);
+            return ParseSignInResult(json);
+        }
 
         /// <summary>把游标（形如 "page=2" 或数字字符串）解析为页码。无游标返回 1。</summary>
         private static int ParsePageFromCursor(string cursor)
@@ -516,6 +626,112 @@ namespace Vista.Adapters.Weibo
                 };
             }
             catch { return null; }
+        }
+
+        /// <summary>解析热搜榜。结构：data.cards[0].card_group（含 desc/desc_extr/icon_desc）。</summary>
+        private static IReadOnlyList<HotSearchItem> ParseHotSearch(string json)
+        {
+            var list = new List<HotSearchItem>();
+            if (string.IsNullOrEmpty(json)) return list;
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                if (!root.TryGetProperty("data", out var data)) return list;
+                if (!data.TryGetProperty("cards", out var cards)) return list;
+                foreach (var card in cards.EnumerateArray())
+                {
+                    if (!card.TryGetProperty("card_group", out var group)) continue;
+                    int rank = 1;
+                    foreach (var item in group.EnumerateArray())
+                    {
+                        var hi = new HotSearchItem
+                        {
+                            Rank = rank++,
+                            Keyword = TryGetText(item, "desc") ?? "",
+                            Heat = TryGetText(item, "desc_extr") ?? "",
+                            Tag = TryGetText(item, "icon_desc")
+                        };
+                        if (!string.IsNullOrEmpty(hi.Keyword)) list.Add(hi);
+                    }
+                }
+                return list;
+            }
+            catch { return list; }
+        }
+
+        /// <summary>解析粉丝/关注列表。结构：data.cards[].card_group[].user。</summary>
+        private static PagedResult<UserProfile> ParseUserRelationList(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return PagedResult<UserProfile>.Empty;
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                if (!root.TryGetProperty("data", out var data)) return PagedResult<UserProfile>.Empty;
+                if (!data.TryGetProperty("cards", out var cards)) return PagedResult<UserProfile>.Empty;
+                var list = new List<UserProfile>();
+                foreach (var card in cards.EnumerateArray())
+                {
+                    if (card.TryGetProperty("card_group", out var group))
+                    {
+                        foreach (var g in group.EnumerateArray())
+                        {
+                            if (g.TryGetProperty("user", out var u))
+                                list.Add(MapUserToProfile(u));
+                        }
+                    }
+                    else if (card.TryGetProperty("user", out var u2))
+                    {
+                        list.Add(MapUserToProfile(u2));
+                    }
+                }
+                string next = null;
+                if (data.TryGetProperty("cardlistInfo", out var info)
+                    && info.TryGetProperty("page", out var p))
+                    next = CursorFromPage(p.GetInt32());
+                return new PagedResult<UserProfile>(list, next);
+            }
+            catch { return PagedResult<UserProfile>.Empty; }
+        }
+
+        private static UserProfile MapUserToProfile(JsonElement u)
+        {
+            return new UserProfile
+            {
+                Id = TryGetText(u, "id"),
+                Name = TryGetText(u, "screen_name"),
+                Avatar = TryGetText(u, "avatar_hd") ?? TryGetText(u, "profile_image_url"),
+                Bio = TryGetText(u, "description"),
+                FollowCount = u.TryGetProperty("follow_count", out var fc) ? fc.GetInt32() : 0,
+                FollowerCount = u.TryGetProperty("followers_count", out var foc) ? foc.GetInt32() : 0,
+                PostCount = u.TryGetProperty("statuses_count", out var sc) ? sc.GetInt32() : 0
+            };
+        }
+
+        /// <summary>解析超话签到结果。</summary>
+        private static SuperTopicSignInResult ParseSignInResult(string json)
+        {
+            var result = new SuperTopicSignInResult();
+            if (string.IsNullOrEmpty(json)) { result.Message = "响应为空"; return result; }
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                var ok = doc.RootElement.TryGetProperty("ok", out var okVal) && okVal.GetInt32() == 1;
+                result.Success = ok;
+                if (doc.RootElement.TryGetProperty("data", out var data))
+                {
+                    result.Message = TryGetText(data, "toast") ?? (ok ? "签到成功" : "签到失败");
+                    if (data.TryGetProperty("continuous", out var cont) && cont.ValueKind == JsonValueKind.Number)
+                        result.ContinuousDays = cont.GetInt32();
+                }
+                else
+                {
+                    result.Message = ok ? "签到成功" : "签到失败";
+                }
+                return result;
+            }
+            catch { result.Message = "解析失败"; return result; }
         }
 
         private static bool ParseOk(string json)

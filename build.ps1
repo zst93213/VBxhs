@@ -1,4 +1,4 @@
-# Vista 无障碍版微博 & 小红书聚合客户端 —— 发布脚本
+# Vista 无障碍版微博客户端 —— 发布脚本
 # 适用环境：Windows 10 1809+ 或 Windows 11，已安装 .NET 8 SDK (SDK-style csproj 用)
 # 命令行：powershell -ExecutionPolicy Bypass -File .\build.ps1
 #

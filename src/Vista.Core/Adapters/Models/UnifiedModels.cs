@@ -107,4 +107,21 @@ namespace Vista.Core.Adapters.Models
     }
 
     public enum Visibility { Public, Friends, Private }
+
+    /// <summary>热搜榜条目。</summary>
+    public sealed class HotSearchItem
+    {
+        public int Rank { get; set; }
+        public string Keyword { get; set; }
+        public string Heat { get; set; }   // 热度文本，如 "1234万"
+        public string Tag { get; set; }    // 标签，如 "热"、"新"、"爆"
+    }
+
+    /// <summary>超话签到结果。</summary>
+    public sealed class SuperTopicSignInResult
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; }
+        public int ContinuousDays { get; set; }
+    }
 }

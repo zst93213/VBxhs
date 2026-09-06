@@ -1,162 +1,260 @@
+using System;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using Vista.Accounts;
+using Vista.Core.Adapters.Models;
 using Vista.Presentation.Accessibility;
 using Vista.Presentation.Auth;
+using Vista.Presentation.Dialogs;
+using Vista.Presentation.Input;
 
 namespace Vista.Presentation
 {
     /// <summary>
-    /// 主窗口 code-behind。只处理纯 UI 事件路由到 ViewModel；所有状态数据绑定到 DataContext。
-    /// 争渡适配要点：
-    ///   1) Loaded 时调用 ZdsCompatibility.DisableVirtualization(信息流 + 评论区)：争渡对虚拟化列表读不准。
-    ///   2) Loaded 时 DemoteStatusBarLiveRegion：发现争渡进程则把状态栏 LiveSetting 降级，避免重复播报。
-    ///   3) 键盘中心注册全局快捷键。
-    ///   4) 状态栏 Status 与 ViewModel 绑定，TextBlock Text 变化触发 UIA LiveRegion（若为 Polite）。
+    /// 主窗口 code-behind。所有事件处理在此桥接 UI ↔ ViewModel。
     /// </summary>
     public partial class MainWindow : Window
     {
-        private MainViewModel _vm;
+        private readonly MainViewModel _vm;
+        private readonly KeyboardCommandCenter _kb;
 
-        public MainWindow()
+        public MainWindow(MainViewModel vm)
         {
             InitializeComponent();
-            Loaded += OnLoaded;
-        }
-
-        private void OnLoaded(object sender, RoutedEventArgs e)
-        {
-            _vm = DataContext as MainViewModel ?? ((App)Application.Current).MainWindowVm;
+            _vm = vm;
             DataContext = _vm;
 
-            // --- 争渡兼容：关虚拟化 + 降 LiveRegion + 状态栏绑定 ---
-            ZdsCompatibility.DisableVirtualization(CardList);
-            ZdsCompatibility.DisableVirtualization(CommentList);
-            ZdsCompatibility.DemoteStatusBarLiveRegion(this);
+            // 绑定集合
+            AccountChip.ItemsSource = _vm.AccountList;
+            CardList.ItemsSource = _vm.Cards;
+            CommentList.ItemsSource = _vm.CurrentComments;
+            HotSearchList.ItemsSource = _vm.HotSearchItems;
 
-            // 状态栏文字：绑定 ViewModel.Status
-            StatusText.SetBinding(System.Windows.Controls.TextBlock.TextProperty,
-                new System.Windows.Data.Binding("Status") { Source = _vm });
+            // 用户主页信息绑定到 DataContext
+            UserProfilePanel.DataContext = _vm;
 
-            // 评论区绑定
-            CommentList.SetBinding(System.Windows.Controls.ItemsControl.ItemsSourceProperty,
-                new System.Windows.Data.Binding("CurrentComments") { Source = _vm });
+            _kb = new KeyboardCommandCenter(this, _vm);
+            _kb.Attach();
 
-            // 信息流绑定
-            CardList.SetBinding(System.Windows.Controls.ItemsControl.ItemsSourceProperty,
-                new System.Windows.Data.Binding("Cards") { Source = _vm });
-
-            // 账号列表绑定（ComboBox 显示 DisplayName）
-            AccountChip.SetBinding(System.Windows.Controls.ItemsControl.ItemsSourceProperty,
-                new System.Windows.Data.Binding("AccountList") { Source = _vm });
-            AccountChip.DisplayMemberPath = "DisplayName";
-
-            // 选中卡片 → VM.CurrentCard
-            CardList.SelectionChanged += (s2, e2) =>
-                _vm.CurrentCard = CardList.SelectedItem as Core.Adapters.Models.PostCard;
-
-            // --- 全局键盘快捷键 ---
-            Input.KeyboardCommandCenter.Register(this, _vm);
-
-            // --- 默认选中：导航第 0 项，焦点放到搜索框（争渡用户 Tab 第一站） ---
-            if (NavList.Items.Count > 0) NavList.SelectedIndex = 0;
-            Keyboard.Focus(SearchBox);
-
-            // 首次自动刷新（如果已登录）
-            if (_vm.AccountList.Count > 0)
-                _ = _vm.RefreshFeedAsync();
+            Loaded += (s, e) =>
+            {
+                _vm.ReloadAccounts();
+                if (_vm.AccountList.Count > 0)
+                    AccountChip.SelectedIndex = 0;
+                Focus();
+            };
         }
 
-        // ---------- 导航事件 ----------
-        private void OnNavChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (NavList.SelectedItem is ListBoxItem item && item.Tag is string tag)
-                _vm?.NavigateTo(tag);
-        }
+        public void SyncStatus(string text) => StatusText.Text = text;
 
-        // ---------- 账号 ----------
+        // ========== 账号 ==========
+
         private void OnAccountChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (AccountChip.SelectedItem is AccountInfo info)
-                _vm?.SwitchAccount(info);
+            if (AccountChip.SelectedItem is Vista.Accounts.AccountInfo info)
+                _vm.SwitchAccount(info);
         }
 
         private void OnAddAccount(object sender, RoutedEventArgs e)
         {
-            var win = new WebView2LoginWindow { Owner = this };
-            win.ShowDialog();
-            _vm?.ReloadAccounts();
-            // 重新绑定账号下拉
-            if (AccountChip.Items.Count > 0)
-                AccountChip.SelectedIndex = AccountChip.Items.Count - 1;
+            var dlg = new WebView2LoginWindow { Owner = this };
+            var result = dlg.ShowDialog();
+            if (result == true || dlg.LoginSucceeded)
+            {
+                _vm.ReloadAccounts();
+                StatusText.Text = "登录成功，已保存账号";
+            }
         }
 
         private void OnManageAccounts(object sender, RoutedEventArgs e)
-            => MessageBox.Show("账号管理器：添加、分组、删除已登录账号。（M1 实现）", "Vista");
+        {
+            var dlg = new AccountManagerWindow(_vm) { Owner = this };
+            dlg.ShowDialog();
+        }
 
-        // ---------- 工具栏操作 ----------
+        // ========== 信息流 / 搜索 ==========
+
         private async void OnRefresh(object sender, RoutedEventArgs e)
+            => await _vm.RefreshFeedAsync();
+
+        private async void OnHotWeibo(object sender, RoutedEventArgs e)
         {
-            if (_vm == null) return;
-            await _vm.RefreshFeedAsync();
+            ShowCardView();
+            await _vm.LoadHotWeiboAsync();
         }
 
-        private async void OnSearch(object sender, RoutedEventArgs e) => await DoSearch();
-
-        private async System.Threading.Tasks.Task DoSearch()
+        private async void OnHotSearch(object sender, RoutedEventArgs e)
         {
-            if (_vm == null) return;
-            var keyword = SearchBox.Text;
-            await _vm.SearchAsync(keyword);
+            ShowHotSearchView();
+            await _vm.LoadHotSearchAsync();
         }
 
-        private void OnSearchBoxKeyDown(object sender, KeyEventArgs e)
+        private async void OnSearchBoxKeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter)
             {
-                _ = DoSearch();
+                ShowCardView();
+                await _vm.SearchAsync(SearchBox.Text);
                 e.Handled = true;
             }
         }
 
+        // ========== 互动 ==========
+
         private async void OnLike(object sender, RoutedEventArgs e)
-        {
-            if (_vm == null) return;
-            await _vm.LikeCurrentAsync();
-        }
+            => await _vm.LikeCurrentAsync();
 
         private async void OnFavorite(object sender, RoutedEventArgs e)
-        {
-            if (_vm == null) return;
-            await _vm.FavoriteCurrentAsync();
-        }
+            => await _vm.FavoriteCurrentAsync();
 
         private async void OnRepost(object sender, RoutedEventArgs e)
+            => await _vm.RepostCurrentAsync();
+
+        private async void OnFollowAuthor(object sender, RoutedEventArgs e)
+            => await _vm.FollowCurrentAuthorAsync();
+
+        private async void OnViewAuthor(object sender, RoutedEventArgs e)
         {
-            if (_vm == null) return;
-            await _vm.RepostOrShareCurrentAsync();
+            if (_vm.CurrentCard == null)
+            {
+                StatusText.Text = "请先选中一张卡片";
+                return;
+            }
+            ShowUserProfile();
+            await _vm.ViewUserProfileAsync(_vm.CurrentCard.AuthorId);
         }
 
         private async void OnLoadComments(object sender, RoutedEventArgs e)
+            => await _vm.LoadCurrentCommentsAsync();
+
+        private async void OnSendComment(object sender, RoutedEventArgs e)
         {
-            if (_vm == null) return;
-            await _vm.LoadCurrentCommentsAsync();
+            var content = CommentInput.Text;
+            if (string.IsNullOrWhiteSpace(content)) return;
+            var ok = await _vm.CommentCurrentAsync(content);
+            if (ok) CommentInput.Clear();
         }
 
-        private async void OnCheckHealth(object sender, RoutedEventArgs e)
+        private void OnCommentInputKeyDown(object sender, KeyEventArgs e)
         {
-            if (_vm == null) return;
-            await _vm.CheckAccountHealthAsync();
+            if (e.Key == Key.Enter)
+            {
+                OnSendComment(sender, e);
+                e.Handled = true;
+            }
         }
-
-        private void OnNarrateComments(object sender, RoutedEventArgs e) => _vm?.NarrateComments();
-        private void OnNarrateCurrent(object sender, RoutedEventArgs e) => _vm?.NarrateCurrentCard();
 
         private async void OnSaveOffline(object sender, RoutedEventArgs e)
+            => await _vm.SaveFeedOfflineAsync();
+
+        private async void OnCheckHealth(object sender, RoutedEventArgs e)
+            => await _vm.CheckAccountHealthAsync();
+
+        // ========== 发布 / 超话 / 设置 ==========
+
+        private async void OnPublish(object sender, RoutedEventArgs e)
         {
-            if (_vm == null) return;
-            await _vm.SaveFeedOfflineAsync();
+            var dlg = new PublishWindow { Owner = this };
+            if (dlg.ShowDialog() == true)
+            {
+                var ok = await _vm.PublishPostAsync(dlg.PostText, dlg.ImagePaths);
+                if (ok) dlg.Close();
+            }
+        }
+
+        private void OnSuperTopic(object sender, RoutedEventArgs e)
+        {
+            var dlg = new SuperTopicWindow(_vm) { Owner = this };
+            dlg.ShowDialog();
+        }
+
+        private void OnSettings(object sender, RoutedEventArgs e)
+        {
+            var dlg = new SettingsWindow { Owner = this };
+            dlg.ShowDialog();
+        }
+
+        // ========== 用户主页 / 粉丝关注 ==========
+
+        private async void OnLoadFollowers(object sender, RoutedEventArgs e)
+            => await _vm.LoadFollowersAsync();
+
+        private async void OnLoadFollowing(object sender, RoutedEventArgs e)
+            => await _vm.LoadFollowingAsync();
+
+        private async void OnFollowProfileUser(object sender, RoutedEventArgs e)
+        {
+            if (_vm.CurrentUserProfile != null)
+                await _vm.FollowCurrentAuthorAsync();
+        }
+
+        // ========== 卡片 / 列表交互 ==========
+
+        private void OnCardDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (CardList.SelectedItem is PostCard card)
+            {
+                _vm.CurrentCard = card;
+                _vm.LoadCurrentCommentsAsync();
+            }
+        }
+
+        private async void OnHotSearchDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (HotSearchList.SelectedItem is HotSearchItem item)
+            {
+                ShowCardView();
+                await _vm.SearchAsync(item.Keyword);
+            }
+        }
+
+        // ========== 导航 ==========
+
+        private void OnNavChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (NavList.SelectedItem is ListBoxItem item && item.Tag is string tag)
+            {
+                if (tag == "Publish")
+                {
+                    OnPublish(sender, e);
+                    return;
+                }
+                if (tag == "Settings")
+                {
+                    OnSettings(sender, e);
+                    return;
+                }
+                _vm.NavigateTo(tag);
+                if (tag == "HotSearch")
+                    ShowHotSearchView();
+                else
+                    ShowCardView();
+            }
+        }
+
+        // ========== 视图切换辅助 ==========
+
+        private void ShowCardView()
+        {
+            CardList.Visibility = System.Windows.Visibility.Visible;
+            HotSearchList.Visibility = System.Windows.Visibility.Collapsed;
+        }
+
+        private void ShowHotSearchView()
+        {
+            CardList.Visibility = System.Windows.Visibility.Collapsed;
+            HotSearchList.Visibility = System.Windows.Visibility.Visible;
+        }
+
+        private void ShowUserProfile()
+        {
+            UserProfilePanel.Visibility = System.Windows.Visibility.Visible;
+            if (_vm.CurrentUserProfile != null)
+            {
+                UserNameText.Text = _vm.CurrentUserProfile.Name;
+                UserBioText.Text = _vm.CurrentUserProfile.Bio;
+            }
         }
     }
 }

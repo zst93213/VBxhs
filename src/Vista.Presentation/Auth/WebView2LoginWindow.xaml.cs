@@ -1,27 +1,32 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.IO;
 using System.Text;
 using System.Windows;
-using Microsoft.Web.WebView2.Core;
+using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using Serilog;
 using Vista.Accounts;
+using Vista.Adapters.Weibo;
 using Vista.Core;
 
 namespace Vista.Presentation.Auth
 {
     /// <summary>
-    /// WebView2 托管登录窗口。
-    /// 流程（M0 全量落地）：
-    ///   1) 用户选平台 → 加载官方登录页（微博 passport / 小红书首页扫码入口）
-    ///   2) 监听 NavigationCompleted；URL 跳到主站视为登录成功
-    ///   3) 通过 CoreWebView2.CookieManager.GetCookiesAsync(domain) 提取登录 Cookie
-    ///   4) 序列化为 Cookie 字符串 → UTF-8 字节 → SecureCredentialVault.Register 加密
-    ///   5) 通过 /profile/info 接口取真实 UID 作为账号唯一标识
-    ///   6) 清理 WebView 会话（避免凭证在浏览器侧残留）
+    /// 微博扫码登录窗口（不使用 WebView2，纯二维码图片 + HTTP 轮询）。
+    /// 流程：
+    ///   1) Loaded 时调用 WeiboQrCodeLoginService.GenerateQrCodeAsync 获取二维码图片字节 → Image 显示
+    ///   2) 启动 DispatcherTimer 每 2 秒轮询 CheckQrStatusAsync
+    ///   3) 状态 confirmed:{ticket} 时调 ExchangeTicketForCookiesAsync 拿 Cookie
+    ///   4) Cookie 转 UTF-8 字节 → SecureCredentialVault.Register 加密保存
+    ///   5) 调 /profile/info 取真实 UID 作为账号标识
     /// </summary>
     public partial class WebView2LoginWindow : Window
     {
+        private WeiboQrCodeLoginService _loginService;
+        private DispatcherTimer _pollTimer;
+        private string _qrid;
+        private bool _completed;
+
         public bool LoginSucceeded { get; private set; }
         public AccountInfo CreatedAccount { get; private set; }
 
@@ -29,119 +34,180 @@ namespace Vista.Presentation.Auth
         {
             InitializeComponent();
             Loaded += OnLoaded;
+            Closing += OnClosing;
         }
 
         private async void OnLoaded(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                await LoginWebView.EnsureCoreWebView2Async(null);
-            }
-            catch (WebView2RuntimeNotFoundException)
-            {
-                LoginStatus.Text = "未检测到 WebView2 运行时，请先安装。";
-                MessageBox.Show("需要先安装 Microsoft Edge WebView2 Runtime。\n下载地址：https://developer.microsoft.com/microsoft-edge/webview2/", "Vista");
-                return;
-            }
+            _loginService = new WeiboQrCodeLoginService();
+            await RefreshQrAsync();
 
-            string url = PlatformXhs.IsChecked == true
-                ? "https://www.xiaohongshu.com/"
-                : "https://passport.weibo.com/sso/signin";
-            LoginWebView.CoreWebView2.Navigate(url);
-            LoginStatus.Text = "已加载登录页，请在页面中完成登录。登录成功后凭证将加密保存。";
+            _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            _pollTimer.Tick += async (s, args) => await PollStatusAsync();
+            _pollTimer.Start();
         }
 
-        /// <summary>导航完成：判断登录成功，取 Cookie → 加密保存。</summary>
-        private async void OnNavCompleted(object sender, CoreWebView2NavigationCompletedEventArgs e)
+        private void OnClosing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            if (!e.IsSuccess) { LoginStatus.Text = "页面加载失败，请检查网络。"; return; }
+            _pollTimer?.Stop();
+            _loginService?.Dispose();
+        }
 
-            var source = LoginWebView.CoreWebView2.Source;
-            var isWeibo = source.Contains("weibo.com") && !source.Contains("passport");
-            var isXhs = source.Contains("xiaohongshu.com") &&
-                (source.Contains("/explore") || source.Contains("/homefeed") || source == "https://www.xiaohongshu.com/" || source.Contains("/user/profile"));
+        /// <summary>重新生成二维码。</summary>
+        private async void OnRefreshQr(object sender, RoutedEventArgs e) => await RefreshQrAsync();
 
-            if (!isWeibo && !isXhs) return; // 还在登录页，等下次导航
-
-            LoginStatus.Text = "检测到登录成功，正在提取并加密保存凭证…";
+        private async System.Threading.Tasks.Task RefreshQrAsync()
+        {
             try
             {
-                var domain = isWeibo ? ".weibo.cn" : ".xiaohongshu.com";
-                var cookieList = await LoginWebView.CoreWebView2.CookieManager.GetCookiesAsync(domain);
-                // 同时取 .com 根域 cookie（XSRF-TOKEN 通常在根域）
-                var cookieList2 = await LoginWebView.CoreWebView2.CookieManager.GetCookiesAsync(isWeibo ? ".weibo.com" : ".xiaohongshu.com");
-                var all = new List<CoreWebView2Cookie>();
-                if (cookieList != null) all.AddRange(cookieList);
-                if (cookieList2 != null)
-                    foreach (var c in cookieList2)
-                        if (!all.Exists(x => x.Name == c.Name && x.Domain == c.Domain))
-                            all.Add(c);
+                RefreshQrBtn.IsEnabled = false;
+                LoginStatus.Text = "正在生成二维码...";
+                var (imageBytes, qrid) = await _loginService.GenerateQrCodeAsync();
+                _qrid = qrid;
 
-                var cookieString = BuildCookieString(all);
-                if (string.IsNullOrEmpty(cookieString))
+                // 字节流 → BitmapImage → Image.Source
+                using var ms = new MemoryStream(imageBytes);
+                var bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                bmp.StreamSource = ms;
+                bmp.EndInit();
+                bmp.Freeze();
+                QrImage.Source = bmp;
+
+                LoginStatus.Text = "请用手机微博扫描二维码登录";
+                RefreshQrBtn.IsEnabled = true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "生成二维码失败");
+                LoginStatus.Text = "生成二维码失败：" + ex.Message;
+                RefreshQrBtn.IsEnabled = true;
+            }
+        }
+
+        /// <summary>轮询扫码状态。</summary>
+        private async System.Threading.Tasks.Task PollStatusAsync()
+        {
+            if (_completed || string.IsNullOrEmpty(_qrid)) return;
+            try
+            {
+                var status = await _loginService.CheckQrStatusAsync(_qrid);
+                if (status == "pending")
                 {
-                    LoginStatus.Text = "未能读取到登录 Cookie，请确认登录成功后稍候。";
-                    return;
+                    // 未扫码，继续等
                 }
+                else if (status == "scanned")
+                {
+                    LoginStatus.Text = "已扫码，请在手机上确认登录";
+                }
+                else if (status.StartsWith("confirmed:"))
+                {
+                    var ticket = status.Substring("confirmed:".Length);
+                    await CompleteLoginAsync(ticket);
+                }
+                else if (status.StartsWith("error:"))
+                {
+                    LoginStatus.Text = "状态检查异常：" + status;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "轮询扫码状态失败");
+            }
+        }
 
-                var platform = isWeibo ? PlatformId.Weibo : PlatformId.Xiaohongshu;
-                var uid = ExtractUidFromCookie(cookieString, platform) ?? "unknown-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+        /// <summary>扫码确认后用 ticket 换 cookie → 加密保存。</summary>
+        private async System.Threading.Tasks.Task CompleteLoginAsync(string ticket)
+        {
+            if (_completed) return;
+            _completed = true;
+            _pollTimer?.Stop();
+
+            try
+            {
+                LoginStatus.Text = "登录成功，正在保存凭证...";
+                var cookie = await _loginService.ExchangeTicketForCookiesAsync(ticket);
+
+                // 取 UID：优先从 SUBP cookie 解析，失败则调 /profile/info
+                var uid = ExtractUidFromSubp(cookie);
+                if (string.IsNullOrEmpty(uid))
+                {
+                    // 调 profile/info 拿真实 UID
+                    uid = await FetchUidAsync(cookie);
+                }
+                if (string.IsNullOrEmpty(uid))
+                    uid = "weibo-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+
                 var info = new AccountInfo
                 {
-                    Platform = platform,
+                    Platform = PlatformId.Weibo,
                     Uid = uid,
-                    DisplayName = (isWeibo ? "微博 " : "小红书 ") + uid,
+                    DisplayName = "微博 " + uid,
                     LastLoginAt = DateTimeOffset.Now
                 };
 
-                var blob = Encoding.UTF8.GetBytes(cookieString);
+                var blob = Encoding.UTF8.GetBytes(cookie);
                 var app = (App)Application.Current;
                 app.Accounts.Register(info, blob);
                 app.AccountContext.SwitchTo(info.ToAccountId());
 
-                // 销毁 WebView 会话，避免 Cookie 在浏览器侧残留
-                try { await LoginWebView.CoreWebView2.Profile.ClearBrowsingDataAsync(); }
-                catch (Exception ex) { Log.Warning(ex, "清理 WebView 会话失败"); }
-
                 CreatedAccount = info;
                 LoginSucceeded = true;
-                LoginStatus.Text = $"登录成功：{info.DisplayName}（{info.Uid}）";
-                await System.Threading.Tasks.Task.Delay(800);
+                LoginStatus.Text = $"登录成功：{info.DisplayName}";
+                await System.Threading.Tasks.Task.Delay(600);
                 Close();
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Cookie 提取/保存失败");
+                Log.Error(ex, "登录凭证保存失败");
                 LoginStatus.Text = "凭证保存失败：" + ex.Message;
+                _completed = false; // 允许重试
+                _pollTimer?.Start();
             }
         }
 
-        /// <summary>把 Cookie 列表转为 "k1=v1; k2=v2" 形式（HTTP Cookie header）。</summary>
-        private static string BuildCookieString(List<CoreWebView2Cookie> cookies)
+        /// <summary>从 SUBP cookie 中提取 UID。SUBP 格式：0033WrYD...&uid=123456&... </summary>
+        private static string ExtractUidFromSubp(string cookie)
         {
-            if (cookies == null || cookies.Count == 0) return null;
-            var sb = new StringBuilder();
-            foreach (var c in cookies)
-            {
-                if (sb.Length > 0) sb.Append("; ");
-                sb.Append(c.Name).Append('=').Append(c.Value);
-            }
-            return sb.ToString();
-        }
-
-        /// <summary>从 Cookie 中提取 UID 作为账号唯一标识。
-        /// 微博：SUBP 字段含 uid；小红书：customerClientId 或 web_session 中无 uid，
-        /// 此时调用方后续可主动 /user/selfinfo 更新。</summary>
-        private static string ExtractUidFromCookie(string cookie, PlatformId platform)
-        {
-            // 简化：从 cookie 中找 uid 字段
-            var key = platform == PlatformId.Weibo ? "SUB" : "web_session";
-            var idx = cookie.IndexOf(key + "=", StringComparison.OrdinalIgnoreCase);
+            if (string.IsNullOrEmpty(cookie)) return null;
+            var idx = cookie.IndexOf("SUBP=", StringComparison.OrdinalIgnoreCase);
             if (idx < 0) return null;
-            var start = idx + key.Length + 1;
+            var start = idx + "SUBP=".Length;
             var end = cookie.IndexOf(';', start);
             if (end < 0) end = cookie.Length;
-            return cookie.Substring(start, end - start);
+            var subp = cookie.Substring(start, end - start);
+            var uidIdx = subp.IndexOf("uid=", StringComparison.OrdinalIgnoreCase);
+            if (uidIdx < 0) return null;
+            var uidStart = uidIdx + 4;
+            var uidEnd = subp.IndexOf('&', uidStart);
+            if (uidEnd < 0) uidEnd = subp.Length;
+            return subp.Substring(uidStart, uidEnd - uidStart);
+        }
+
+        /// <summary>通过 /profile/info 接口获取当前登录用户 UID。</summary>
+        private async System.Threading.Tasks.Task<string> FetchUidAsync(string cookie)
+        {
+            try
+            {
+                using var http = new System.Net.Http.HttpClient();
+                http.DefaultRequestHeaders.UserAgent.ParseAdd(
+                    "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36");
+                using var req = new System.Net.Http.HttpRequestMessage(
+                    System.Net.Http.HttpMethod.Get,
+                    "https://m.weibo.cn/api/config");
+                req.Headers.TryAddWithoutValidation("Cookie", cookie);
+                req.Headers.TryAddWithoutValidation("Referer", "https://m.weibo.cn/");
+                using var resp = await http.SendAsync(req);
+                if (!resp.IsSuccessStatusCode) return null;
+                var json = await resp.Content.ReadAsStringAsync();
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("data", out var data)
+                    && data.TryGetProperty("uid", out var uid))
+                    return uid.GetRawText().Trim('"');
+                return null;
+            }
+            catch { return null; }
         }
     }
 }
